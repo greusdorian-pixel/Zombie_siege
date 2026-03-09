@@ -710,7 +710,7 @@
         if (shake.t < shake.d) {
             shake.t += dt;
             var f = 1 - (shake.t / shake.d);
-            camera.position.x += camBase.x + (Math.random() - 0.5) * shake.i * f;
+            camera.position.x = camBase.x + (Math.random() - 0.5) * shake.i * f;
             camera.position.y = camBase.y + (Math.random() - 0.5) * shake.i * f;
         }
     }
