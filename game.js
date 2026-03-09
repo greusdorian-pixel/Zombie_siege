@@ -50,10 +50,24 @@
     var maxStamina = 100;
     var staminaExhausted = false;   // flag: no puede correr hasta recuperar un mínimo
 
-    // ── RECOIL ───────────────────────────────────
-    var recoilPitch = 0;            // extra pitch añadido al disparar
-    var RECOIL_K = [0.04, 0.12, 0.025, 0.10]; // kick por arma (pistola, escopeta, metralleta, sniper)
-    var RECOIL_DECAY = 4.5;         // velocidad de recuperación (rad/s)
+    // ── RECOIL (solo visual, nunca toca player.pitch) ────
+    var recoilPitch = 0;            // acumulación de retroceso visual
+    var RECOIL_K = [0.04, 0.12, 0.025, 0.10]; // kick por arma
+    var RECOIL_DECAY = 5.0;         // velocidad de recuperación (rad/s)
+
+    // ── GRAVEDAD Y SALTO ─────────────────────────
+    var GRAVITY = 25;            // aceleración gravitacional (unidades/s²)
+    var JUMP_FORCE = 8.5;           // impulso vertical al saltar
+    var player_py = 1.7;           // posición Y actual del jugador (altura de ojos)
+    var player_vy = 0;             // velocidad vertical
+    var isGrounded = true;          // está en el suelo?
+    var jumpPressed = false;        // evita salto continuo manteniendo Space
+    var EYE_HEIGHT = 1.7;           // altura de ojos sobre el suelo
+
+    // ── WEAPON ANIMATION (Sway & Bobbing) ────────
+    var WEAPON_BASE = { x: 0.22, y: -0.28, z: -0.5 }; // posición en reposo del arma
+    var wSwayX = 0, wSwayY = 0, wSwayZ = 0;    // posición sway actual (Lerp target)
+    var wBobT = 0;                              // reloj del bob acumulado
 
     // ── COLISIONES AABB ──────────────────────────
     var mapBounds = [];             // [{minX,maxX,minZ,maxZ}] de cada edificio
@@ -354,7 +368,8 @@
         wModels[2] = makeSMG();
         wModels[3] = makeSniper();
         wModels.forEach(function (m, i) { wGroup.add(m); m.visible = (i === 0); });
-        wGroup.position.set(0.22, -0.28, -0.5);
+        // La posición base del grupo es la constante WEAPON_BASE
+        wGroup.position.set(WEAPON_BASE.x, WEAPON_BASE.y, WEAPON_BASE.z);
     }
 
     function matM(col, shin) { return new THREE.MeshPhongMaterial({ color: col || 0x777777, shininess: shin || 40 }); }
@@ -704,70 +719,125 @@
     // JUGADOR
     // ──────────────────────────────────────────────
     function updatePlayer(dt) {
-        // Ratón → ángulos
+        // ─── 1. CAM: Ratón → yaw y pitch del jugador (NUNCA tocar con recoil) ───
         var sens = 0.002;
         player.yaw -= mdx * sens; mdx = 0;
         player.pitch -= mdy * sens; mdy = 0;
+        // Clamp vertical: evita girar 360° hacia arriba/abajo
+        player.pitch = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, player.pitch));
 
-        // ── Recoil decay: recuperar pitch suavemente ──
+        // ─── 2. RECOIL: decaimiento suave del kick visual ───────────────────────
+        // recoilPitch se acumula en tryFire() pero NUNCA modifica player.pitch
         if (recoilPitch > 0) {
-            var decay = RECOIL_DECAY * dt;
-            recoilPitch = Math.max(0, recoilPitch - decay);
+            recoilPitch = Math.max(0, recoilPitch - RECOIL_DECAY * dt);
         }
-        player.pitch = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, player.pitch - recoilPitch * 0.12));
-
+        // La cámara muestra player.pitch (real) + recoilPitch (efecto visual)
+        // → Sin este separación el PointerLock empuja la mira permanentemente
         camera.rotation.order = 'YXZ';
         camera.rotation.y = player.yaw;
-        camera.rotation.x = player.pitch;
+        camera.rotation.x = player.pitch + recoilPitch; // solo visual
 
-        // ── Stamina + velocidad con Shift ─────────────
+        // ─── 3. GRAVEDAD Y SALTO ────────────────────────────────────────────────
+        // Aplicar gravedad al vector vertical del jugador (aceleración constante)
+        player_vy -= GRAVITY * dt;
+        // Sumar velocidad vertical a posición Y
+        player_py += player_vy * dt;
+
+        // Detección de suelo: Y base = EYE_HEIGHT (altura de ojos sobre el suelo)
+        if (player_py <= EYE_HEIGHT) {
+            player_py = EYE_HEIGHT;  // anclar al suelo
+            player_vy = 0;           // anular velocidad de caída
+            isGrounded = true;        // habilitar siguiente salto
+        }
+        // Salto: solo si está en el suelo y se presiona Space por primera vez
+        if (keys['Space'] && isGrounded && !jumpPressed) {
+            player_vy = JUMP_FORCE; // impulso hacia arriba
+            isGrounded = false;      // ya no está en el suelo
+            jumpPressed = true;       // bloquear repetición mientras se mantiene la tecla
+        }
+        // Resetear flag cuando se suelta la tecla
+        if (!keys['Space']) jumpPressed = false;
+
+        // ─── 4. STAMINA + VELOCIDAD CON SHIFT ──────────────────────────────────
         var wantSprint = (keys['ShiftLeft'] || keys['ShiftRight']);
-        var isMoving   = (keys['KeyW'] || keys['ArrowUp'] || keys['KeyS'] || keys['ArrowDown'] ||
-                          keys['KeyA'] || keys['ArrowLeft'] || keys['KeyD'] || keys['ArrowRight']);
+        var isMoving = (keys['KeyW'] || keys['ArrowUp'] || keys['KeyS'] || keys['ArrowDown'] ||
+            keys['KeyA'] || keys['ArrowLeft'] || keys['KeyD'] || keys['ArrowRight']);
 
+        // Solo puede correr si tiene stamina (y no está agotado)
         var canSprint = wantSprint && !staminaExhausted;
         if (canSprint && isMoving) {
-            stamina = Math.max(0, stamina - dt * 28);  // drena ~28/s corriendo
+            stamina = Math.max(0, stamina - dt * 28);      // drenar ~28/s corriendo
             if (stamina <= 0) staminaExhausted = true;
         } else {
-            // Regeneración (más rápida parado)
-            var regenRate = isMoving ? 12 : 22;
+            var regenRate = isMoving ? 12 : 22;            // regenerar más rápido parado
             stamina = Math.min(maxStamina, stamina + dt * regenRate);
-            if (staminaExhausted && stamina >= 25) staminaExhausted = false;  // umbral para volver a correr
+            if (staminaExhausted && stamina >= 25) staminaExhausted = false;
         }
         updateStaminaHUD();
 
+        // ─── 5. MOVIMIENTO WASD + COLISIONES AABB ──────────────────────────────
         var spd = (canSprint && isMoving) ? 7.5 : 5;
-        var fwd   = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(0, player.yaw, 0));
-        var right  = new THREE.Vector3(1, 0, 0).applyEuler(new THREE.Euler(0, player.yaw, 0));
+        // Calcular vectores de dirección relativos al yaw del jugador (no al pitch)
+        var fwd = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(0, player.yaw, 0));
+        var right = new THREE.Vector3(1, 0, 0).applyEuler(new THREE.Euler(0, player.yaw, 0));
         var mov = new THREE.Vector3();
-        if (keys['KeyW'] || keys['ArrowUp'])    mov.addScaledVector(fwd,   spd);
-        if (keys['KeyS'] || keys['ArrowDown'])  mov.addScaledVector(fwd,  -spd);
-        if (keys['KeyA'] || keys['ArrowLeft'])  mov.addScaledVector(right, -spd);
-        if (keys['KeyD'] || keys['ArrowRight']) mov.addScaledVector(right,  spd);
+        if (keys['KeyW'] || keys['ArrowUp']) mov.addScaledVector(fwd, spd);
+        if (keys['KeyS'] || keys['ArrowDown']) mov.addScaledVector(fwd, -spd);
+        if (keys['KeyA'] || keys['ArrowLeft']) mov.addScaledVector(right, -spd);
+        if (keys['KeyD'] || keys['ArrowRight']) mov.addScaledVector(right, spd);
 
-        // ── Colisiones AABB con deslizamiento ─────────
+        // Probar movimiento completo; si choca, intentar ejes por separado (slide)
         var nx = player.px + mov.x * dt;
         var nz = player.pz + mov.z * dt;
-        // Intentar movimiento completo
-        if (canMove(nx, nz)) {
-            player.px = nx; player.pz = nz;
-        } else {
-            // Deslizamiento: intentar solo X
-            if (canMove(nx, player.pz)) {
-                player.px = nx;
-            // Deslizamiento: intentar solo Z
-            } else if (canMove(player.px, nz)) {
-                player.pz = nz;
-            }
-        }
+        if (canMove(nx, nz)) { player.px = nx; player.pz = nz; }
+        else if (canMove(nx, player.pz)) { player.px = nx; }               // deslizar en X
+        else if (canMove(player.px, nz)) { player.pz = nz; }               // deslizar en Z
 
-        // Mantener dentro del mapa (límite suave)
+        // Mantener dentro de los límites del mapa
         player.px = Math.max(-90, Math.min(90, player.px));
         player.pz = Math.max(-90, Math.min(90, player.pz));
 
-        camBase.set(player.px, 1.7, player.pz);
-        camera.position.set(player.px, 1.7, player.pz);
+        // ─── 6. SINCRONIZAR CÁMARA ─────────────────────────────────────────────
+        // La posición Y usa player_py (incluye gravedad y salto)
+        camBase.set(player.px, player_py, player.pz);
+        camera.position.set(player.px, player_py, player.pz);
+
+        // ─── 7. ANIMACIÓN PROCEDURAL DEL ARMA ──────────────────────────────────
+        updateWeaponAnimation(dt, isMoving, canSprint && isMoving);
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // WEAPON ANIMATION: Bobbing (caminar/correr) + Sway (recoil visual)
+    // ─────────────────────────────────────────────────────────────────
+    function updateWeaponAnimation(dt, isMoving, isSprinting) {
+        // Lerp helper: interpola suavemente de 'a' hacia 'b' con factor 'f'
+        function lerp(a, b, f) { return a + (b - a) * f; }
+
+        // ─ Bobbing: oscilar el arma si el jugador se mueve ─
+        var bobSpeed = isSprinting ? 12 : 7;    // más rápido al correr
+        var bobAmpY = isSprinting ? 0.022 : 0.010; // más amplitud al correr
+        var bobAmpX = isSprinting ? 0.012 : 0.005;
+
+        if (isMoving && isGrounded) {
+            wBobT += dt * bobSpeed;  // avanzar el reloj del bob
+        } else {
+            // Cuando para, el reloj frena gradualmente (no se congela en brusco)
+            wBobT += dt * (Math.abs(Math.sin(wBobT)) * 3); // suaviza hacia cero del seno
+        }
+
+        var targetY = WEAPON_BASE.y + (isMoving && isGrounded ? Math.sin(wBobT) * bobAmpY : 0);
+        var targetX = WEAPON_BASE.x + (isMoving && isGrounded ? Math.cos(wBobT * 0.5) * bobAmpX : 0);
+
+        // ─ Recoil visual del arma: patada hacia el jugador (Z) y arriba (Y) ─
+        // recoilPitch es positivo al disparar y decae hacia 0 en updatePlayer()
+        var recoilZ = recoilPitch * 0.25;  // arma se retira hacia la cara al disparar
+        var recoilY = recoilPitch * 0.18;  // arma sube un poco al disparar
+
+        // Aplicar Lerp: la posición del arma se interpola hacia el target deseado
+        // Factor 0.18 = suave; valores altos (0.5+) = más instantáneo
+        wGroup.position.x = lerp(wGroup.position.x, targetX, 0.18);
+        wGroup.position.y = lerp(wGroup.position.y, targetY + recoilY, 0.18);
+        wGroup.position.z = lerp(wGroup.position.z, WEAPON_BASE.z + recoilZ, 0.22);
     }
 
     function updateStaminaHUD() {
@@ -784,64 +854,130 @@
     }
 
     // ──────────────────────────────────────────────
-    // ZOMBIES UPDATE
+    // ZOMBIES UPDATE — FSM: WANDER / CHASE
     // ──────────────────────────────────────────────
     function updateZombies(dt) {
         var now = clock.elapsedTime;
         for (var i = zombies.length - 1; i >= 0; i--) {
             var zb = zombies[i], ud = zb.ud, m = zb.mesh;
 
-            // Spawn animation (emerge from ground)
+            // ─ Spawn animation (emerge del suelo) ─
             if (ud.spawning) {
                 ud.spT += dt; m.position.y = -2.5 + ud.spT * 4;
                 if (m.position.y >= 0) { m.position.y = 0; ud.spawning = false; }
                 continue;
             }
-
+            // ─ Animación de muerte ─
             if (ud.dying) {
                 ud.dyT += dt; m.rotation.x = ud.dyT * (Math.PI / 2) / 1.5;
                 m.children.forEach(function (c) { if (c.material && c.material.transparent) c.material.opacity = Math.max(0, 1 - ud.dyT / 1.5); });
                 if (ud.dyT > 1.5) { scene.remove(m); zombies.splice(i, 1); }
                 continue;
             }
-
+            // ─ Ignorar muertos ─
             if (!ud.alive) continue;
 
-            // AI: move toward player
-            var dx = player.px - m.position.x, dz = player.pz - m.position.z;
+            // ─── MÁQUINA DE ESTADOS FINITA (FSM) ──────────────────────────────────
+            // Calcular distancia al jugador en plano XZ
+            var dx = player.px - m.position.x;
+            var dz = player.pz - m.position.z;
             var dist = Math.sqrt(dx * dx + dz * dz);
-            // zigzag for fast
-            if (ud.tkey === 'F') { dx += Math.sin(now * 3 + i) * 0.4; dz += Math.cos(now * 2.5 + i) * 0.4; }
+            var CHASE_DIST = 28;  // radio a partir del cual persigue al jugador
+            var ATTACK_DIST = 1.5; // radio de ataque cuerpo a cuerpo
 
-            if (dist > 1.5) {
-                var spd = ud.cfg.spd;
-                m.position.x += dx / dist * spd * dt;
-                m.position.z += dz / dist * spd * dt;
+            if (dist <= ATTACK_DIST) {
+                // ─── ESTADO: ATACAR ─────────────────────────────────────
+                // Dentro del rango de mordida → dañar al jugador
+                if (now - ud.atkT >= ud.cfg.atkRate) {
+                    ud.atkT = now;
+                    damagePlayer(ud.cfg.dmg);
+                }
+                ud.aiState = 'ATTACK';
+
+            } else if (dist <= CHASE_DIST || ud.aiState === 'CHASE') {
+                // ─── ESTADO: CHASE (Perseguir) ──────────────────────────
+                // Detectado al jugador: moverse directamente hacia él
+                ud.aiState = 'CHASE';
+                var spd = ud.cfg.spd;  // velocidad de persecución (cfg por tipo)
+
+                // Zigzag exclusivo del tipo "F" (rápido) para dificultar el apuntado
+                if (ud.tkey === 'F') {
+                    dx += Math.sin(now * 3 + i) * 0.5;
+                    dz += Math.cos(now * 2.5 + i) * 0.5;
+                    // Recalcular dist con el offset del zigzag
+                    dist = Math.sqrt(dx * dx + dz * dz);
+                }
+
+                // Calcular nueva posición usando canMove() para no atravesar paredes
+                var nx = m.position.x + (dx / dist) * spd * dt;
+                var nz = m.position.z + (dz / dist) * spd * dt;
+
+                // El zombie también respeta las colisiones AABB de edificios
+                if (canMove(nx, nz)) { m.position.x = nx; m.position.z = nz; }
+                else if (canMove(nx, m.position.z)) { m.position.x = nx; }  // deslizar
+                else if (canMove(m.position.x, nz)) { m.position.z = nz; }  // deslizar
+
+                // Rotar el zombie hacia el jugador con Math.atan2
                 m.rotation.y = Math.atan2(dx, dz);
-                // Walk cycle
-                ud.wc += dt * (spd * ud.cfg.rr);
+
+                // Si se aleja del jugador (p. ej. da la vuelta), vuelve a WANDER
+                if (dist > CHASE_DIST + 8) ud.aiState = 'WANDER';
+
+            } else {
+                // ─── ESTADO: WANDER (Deambular) ─────────────────────────
+                ud.aiState = ud.aiState || 'WANDER'; // inicializar si no existe
+
+                // Cada 2-5 segundos elegir un nuevo ángulo aleatorio de patrulla
+                ud.wanderT = (ud.wanderT || 0) + dt;
+                if (!ud.wanderAngle || ud.wanderT > (ud.wanderInterval || 3)) {
+                    ud.wanderAngle = Math.random() * Math.PI * 2;      // dirección aleatoria
+                    ud.wanderInterval = 2 + Math.random() * 3;            // próximo cambio: 2-5s
+                    ud.wanderT = 0;
+                }
+
+                // Velocidad de deambular = 1/4 de la velocidad de persecución
+                var wanderSpd = 1.0;
+                var wx = Math.sin(ud.wanderAngle) * wanderSpd * dt;
+                var wz = Math.cos(ud.wanderAngle) * wanderSpd * dt;
+
+                // Si choca al deambular → cambiar dirección inmediatamente
+                if (canMove(m.position.x + wx, m.position.z + wz)) {
+                    m.position.x += wx;
+                    m.position.z += wz;
+                } else {
+                    // Rebotar con un ángulo nuevo + 90°-180°
+                    ud.wanderAngle = ud.wanderAngle + Math.PI * (0.5 + Math.random() * 0.5);
+                    ud.wanderInterval = 1; // forzar recalculo pronto
+                }
+
+                // Rotar suavemente hacia el ángulo de patrulla
+                var targetRotY = ud.wanderAngle;
+                // Interpolación angular (Lerp corto)
+                m.rotation.y = m.rotation.y + (targetRotY - m.rotation.y) * Math.min(dt * 4, 1);
+            }
+
+            // ─ Walk cycle: animación de extremidades ─
+            // Se aplica en CHASE y WANDER (si no está atacando)
+            if (ud.aiState !== 'ATTACK') {
+                var animSpd = ud.aiState === 'CHASE' ? ud.cfg.spd : 1.0;
+                ud.wc += dt * (animSpd * ud.cfg.rr);
                 ud.la.rotation.x = Math.sin(ud.wc) * 0.7;
                 ud.ra.rotation.x = -Math.sin(ud.wc) * 0.7;
                 ud.ll.rotation.x = -Math.sin(ud.wc) * 0.5;
                 ud.rl.rotation.x = Math.sin(ud.wc) * 0.5;
                 ud.la.rotation.z = -0.4 + Math.sin(ud.wc) * 0.4;
                 ud.ra.rotation.z = 0.4 - Math.sin(ud.wc) * 0.4;
-            } else {
-                // ATTACK
-                if (now - ud.atkT >= ud.cfg.atkRate) {
-                    ud.atkT = now;
-                    damagePlayer(ud.cfg.dmg);
-                }
             }
 
-            // hit flash
+            // ─ Hit flash: parpadeo rojo al recibir daño ─
             if (ud.hitFlash > 0) {
                 ud.hitFlash -= dt;
-                m.children.forEach(function (c) { if (c.material) c.material.emissive && c.material.emissive.setHex(0xff4444); });
+                m.children.forEach(function (c) { if (c.material && c.material.emissive) c.material.emissive.setHex(0xff4444); });
             } else {
                 m.children.forEach(function (c) { if (c.material && c.material.emissive) c.material.emissive.setHex(0x000000); });
             }
 
+            // Fijar el zombie en el suelo (sin físicas de caida por ahora)
             m.position.y = 0;
         }
     }
@@ -879,6 +1015,11 @@
         wIdx = 0; ammo = 12; reloading = false; reloadT = 0; lastFire = 0; fireLock = false; isAiming = false;
         // Reset nuevas variables
         stamina = maxStamina; staminaExhausted = false; recoilPitch = 0;
+        // Reset gravedad y salto
+        player_py = EYE_HEIGHT; player_vy = 0; isGrounded = true; jumpPressed = false;
+        // Reset animación arma
+        wGroup.position.set(WEAPON_BASE.x, WEAPON_BASE.y, WEAPON_BASE.z);
+        wBobT = 0;
         if (domHeadshotNotif) domHeadshotNotif.classList.add('hidden');
         unlocked = [0]; camera.fov = 75; camera.updateProjectionMatrix();
         wCamera.fov = 75; wCamera.updateProjectionMatrix();
