@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zombie Siege — FPS 3D</title>
+    <meta name="description"
+        content="Juego FPS 3D de supervivencia zombie. Sobrevive a las hordas en esta experiencia de terror nocturno." />
+    <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+
+    <!-- THREE.JS CANVAS -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- ============================================================
+     OVERLAYS / PANTALLAS
+     ============================================================ -->
+
+    <!-- PANTALLA DE INICIO -->
+    <div id="screen-menu" class="screen">
+        <div class="menu-content">
+            <h1 class="game-title">ZOMBIE<span>SIEGE</span></h1>
+            <p class="menu-subtitle">Sobrevive a la horda</p>
+            <div class="menu-controls">
+                <div class="control-row"><span class="key">WASD</span><span>Moverse</span></div>
+                <div class="control-row"><span class="key">RATÓN</span><span>Apuntar</span></div>
+                <div class="control-row"><span class="key">CLICK</span><span>Disparar</span></div>
+                <div class="control-row"><span class="key">R</span><span>Recargar</span></div>
+                <div class="control-row"><span class="key">1–4</span><span>Cambiar arma</span></div>
+                <div class="control-row"><span class="key">SHIFT</span><span>Correr</span></div>
+                <div class="control-row"><span class="key">CLICK DER.</span><span>Zoom (Sniper)</span></div>
+            </div>
+            <button id="btn-start" class="btn-primary">▶ EMPEZAR</button>
+        </div>
+    </div>
+
+    <!-- ENTRE RONDAS / CUENTA ATRÁS -->
+    <div id="screen-round" class="screen hidden">
+        <div class="round-content">
+            <div id="round-title" class="round-title">RONDA 1</div>
+            <div id="round-unlock" class="round-unlock hidden"></div>
+            <div id="round-countdown" class="round-countdown">3</div>
+        </div>
+    </div>
+
+    <!-- GAME OVER -->
+    <div id="screen-gameover" class="screen hidden">
+        <div class="gameover-content">
+            <h2 class="gameover-title">GAME OVER</h2>
+            <div class="gameover-stats">
+                <div class="stat-row"><span>Ronda alcanzada</span><span id="go-round">—</span></div>
+                <div class="stat-row"><span>Zombies eliminados</span><span id="go-kills">—</span></div>
+                <div class="stat-row"><span>Puntuación</span><span id="go-score">—</span></div>
+            </div>
+            <button id="btn-retry" class="btn-primary">🔄 REINTENTAR</button>
+        </div>
+    </div>
+
+    <!-- ============================================================
+     HUD — Siempre visible durante el juego
+     ============================================================ -->
+    <div id="hud" class="hidden">
+
+        <!-- CROSSHAIR -->
+        <div id="crosshair">
+            <div class="ch-top"></div>
+            <div class="ch-bottom"></div>
+            <div class="ch-left"></div>
+            <div class="ch-right"></div>
+            <div class="ch-dot"></div>
+        </div>
+
+        <!-- VIDA — abajo izquierda -->
+        <div id="hud-health-panel">
+            <div class="hud-label">❤ VIDA</div>
+            <div id="hud-health-bar-bg">
+                <div id="hud-health-fill"></div>
+            </div>
+            <div id="hud-health-text">100 / 100</div>
+
+            <!-- STAMINA -->
+            <div class="hud-label" id="hud-stamina-label" style="margin-top:8px;">⚡ ENERGÍA</div>
+            <div id="hud-stamina-bar-bg">
+                <div id="hud-stamina-fill"></div>
+            </div>
+        </div>
+
+        <!-- HEADSHOT NOTIF (centrado) -->
+        <div id="headshot-notif" class="hidden">💀 HEADSHOT!</div>
+
+        <!-- ARMA — abajo derecha -->
+        <div id="hud-weapon-panel">
+            <div id="hud-weapon-name">PISTOLA</div>
+            <div id="hud-ammo">12 / 12</div>
+            <div id="hud-reload-bar-bg" class="hidden">
+                <div id="hud-reload-fill"></div>
+            </div>
+        </div>
+
+        <!-- RONDA — arriba centro -->
+        <div id="hud-round-panel">
+            <div id="hud-round">RONDA 1</div>
+            <div id="hud-zombies">Zombies: 0 / 0</div>
+        </div>
+
+        <!-- SCORE + KILLS — arriba derecha -->
+        <div id="hud-score-panel">
+            <div id="hud-score">Score: 0</div>
+            <div id="hud-kills">Kills: 0</div>
+        </div>
+
+        <!-- MINIMAPA — arriba izquierda -->
+        <div id="hud-minimap">
+            <canvas id="minimap-canvas" width="120" height="120"></canvas>
+        </div>
+
+        <!-- NOTIFICACIÓN DE DESBLOQUEO -->
+        <div id="unlock-notif" class="hidden"></div>
+
+    </div>
+
+    <!-- OVERLAY DE DAÑO (viñeta roja) -->
+    <div id="damage-overlay"></div>
+
+    <!-- SCRIPTS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="game.js"></script>
+</body>
+
+</html>
