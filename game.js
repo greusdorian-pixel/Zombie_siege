@@ -536,29 +536,114 @@
     // ──────────────────────────────────────────────
     function makeZombie(tkey) {
         var cfg = ZTYPES[tkey], sc = cfg.sc, g = new THREE.Group();
-        var mm = function (c) { return new THREE.MeshPhongMaterial({ color: c, shininess: 5 }); };
-        var dm = function (c) { return new THREE.MeshPhongMaterial({ color: new THREE.Color(c).multiplyScalar(0.65), shininess: 5 }); };
-        // cuerpo
-        var body = new THREE.Mesh(new THREE.CylinderGeometry(0.25 * sc, 0.2 * sc, 0.7 * sc, 8), mm(cfg.col));
-        body.position.y = 0.35 * sc; g.add(body);
-        // cabeza
-        var head = new THREE.Mesh(new THREE.SphereGeometry(0.2 * sc, 8, 8), mm(cfg.col));
-        head.position.y = 0.9 * sc; head.rotation.z = 0.15;
-        head.userData.isHead = true;  // ← marker para headshot
+
+        // ── Materiales ──────────────────────────────────────────────────────────────
+        var skinCol = cfg.col;
+        var darkCol = new THREE.Color(cfg.col).multiplyScalar(0.45).getHex();
+        var boneCol = 0xc8b89a;
+        var bloodCol = 0x8b0000;
+        var mm = function (c, shi, emi, emiI) {
+            return new THREE.MeshPhongMaterial({
+                color: c, shininess: shi || 4,
+                emissive: emi ? new THREE.Color(emi) : new THREE.Color(0x000000),
+                emissiveIntensity: emiI || 0
+            });
+        };
+
+        // ── TORSO: encorvado ────────────────────────────────────────────────────────
+        var torso = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.22 * sc, 0.18 * sc, 0.72 * sc, 8),
+            mm(skinCol));
+        torso.position.y = 0.36 * sc;
+        torso.rotation.x = 0.35;   // inclinado hacia adelante
+        g.add(torso);
+        // Joroba (no en Fast)
+        if (tkey !== 'F') {
+            var hump = new THREE.Mesh(new THREE.SphereGeometry(0.14 * sc, 6, 6), mm(darkCol));
+            hump.position.set(0, 0.62 * sc, -0.14 * sc); hump.scale.set(1, 0.7, 1.2); g.add(hump);
+        }
+        // Costillas expuestas
+        for (var ri = 0; ri < 3; ri++) {
+            var ribA = new THREE.Mesh(new THREE.CylinderGeometry(0.014 * sc, 0.014 * sc, 0.30 * sc, 4), mm(boneCol, 10, boneCol, 0.15));
+            ribA.position.set(0.16 * sc, (0.22 + ri * 0.11) * sc, 0.1 * sc); ribA.rotation.z = Math.PI / 2 + 0.3; ribA.rotation.x = -0.4; g.add(ribA);
+            var ribB = new THREE.Mesh(new THREE.CylinderGeometry(0.014 * sc, 0.014 * sc, 0.30 * sc, 4), mm(boneCol, 10, boneCol, 0.15));
+            ribB.position.set(-0.16 * sc, (0.22 + ri * 0.11) * sc, 0.1 * sc); ribB.rotation.z = -(Math.PI / 2 + 0.3); ribB.rotation.x = -0.4; g.add(ribB);
+        }
+        // Cicatriz / carne expuesta
+        var wound = new THREE.Mesh(new THREE.SphereGeometry(0.09 * sc, 6, 6), mm(bloodCol, 2, bloodCol, 0.4));
+        wound.position.set(0.08 * sc, 0.42 * sc, 0.17 * sc); wound.scale.set(1.6, 0.5, 0.8); g.add(wound);
+
+        // ── CUELLO ──────────────────────────────────────────────────────────────────
+        var neck = new THREE.Mesh(new THREE.CylinderGeometry(0.09 * sc, 0.11 * sc, 0.18 * sc, 6), mm(darkCol));
+        neck.position.y = 0.77 * sc; neck.rotation.x = 0.3; g.add(neck);
+
+        // ── CABEZA ──────────────────────────────────────────────────────────────────
+        var head = new THREE.Mesh(new THREE.SphereGeometry(0.21 * sc, 8, 7), mm(skinCol, 5));
+        head.position.y = 0.96 * sc;
+        head.rotation.z = tkey === 'F' ? 0.35 : 0.18;
+        head.scale.set(1, 1.1, 0.95);
+        head.userData.isHead = true;
         g.add(head);
-        // ojos emissivos
-        var em = new THREE.MeshPhongMaterial({ color: 0xff0000, emissive: 0xff2200, emissiveIntensity: 1.2 });
-        var eg = new THREE.SphereGeometry(0.035 * sc, 4, 4);
-        var le = new THREE.Mesh(eg, em); le.position.set(0.075 * sc, 0.94 * sc, 0.17 * sc); g.add(le);
-        var re = new THREE.Mesh(eg, em); re.position.set(-0.075 * sc, 0.94 * sc, 0.17 * sc); g.add(re);
-        // brazos
-        var ag = new THREE.CylinderGeometry(0.06 * sc, 0.05 * sc, 0.6 * sc, 6);
-        var la = new THREE.Mesh(ag, dm(cfg.col)); la.position.set(0.3 * sc, 0.55 * sc, 0); la.rotation.z = -0.4; g.add(la);
-        var ra = new THREE.Mesh(ag, dm(cfg.col)); ra.position.set(-0.3 * sc, 0.55 * sc, 0); ra.rotation.z = 0.4; g.add(ra);
-        // piernas
-        var lg2 = new THREE.CylinderGeometry(0.08 * sc, 0.07 * sc, 0.65 * sc, 6);
-        var ll = new THREE.Mesh(lg2, dm(cfg.col)); ll.position.set(0.12 * sc, -0.33 * sc, 0); g.add(ll);
-        var rl = new THREE.Mesh(lg2, dm(cfg.col)); rl.position.set(-0.12 * sc, -0.33 * sc, 0); g.add(rl);
+        // Cráneo parcialmente expuesto
+        var cranium = new THREE.Mesh(new THREE.SphereGeometry(0.115 * sc, 7, 5), mm(0xc8b89a, 8, 0xc8b89a, 0.08));
+        cranium.position.set(0, 1.07 * sc, -0.05 * sc); cranium.scale.set(1.3, 0.6, 1.1); g.add(cranium);
+        // Mandíbula descolgada
+        var jaw = new THREE.Mesh(new THREE.BoxGeometry(0.16 * sc, 0.08 * sc, 0.12 * sc), mm(darkCol));
+        jaw.position.set(0, 0.79 * sc, 0.11 * sc); jaw.rotation.x = 0.55; g.add(jaw);
+        // Dientes
+        for (var ti = 0; ti < 4; ti++) {
+            var tooth = new THREE.Mesh(new THREE.ConeGeometry(0.018 * sc, 0.06 * sc, 4), mm(0xf0ead6, 15));
+            tooth.position.set((ti - 1.5) * 0.055 * sc, 0.81 * sc, 0.17 * sc); tooth.rotation.x = Math.PI; g.add(tooth);
+        }
+        // Ojos brillantes rojos
+        var eyeMat = new THREE.MeshPhongMaterial({ color: 0xff0000, emissive: new THREE.Color(0xff2200), emissiveIntensity: 2.5, shininess: 80 });
+        var le = new THREE.Mesh(new THREE.SphereGeometry(0.045 * sc, 8, 8), eyeMat);
+        le.position.set(0.082 * sc, 0.98 * sc, 0.16 * sc); g.add(le);
+        var re = new THREE.Mesh(new THREE.SphereGeometry(0.045 * sc, 8, 8), eyeMat);
+        re.position.set(-0.082 * sc, 0.98 * sc, 0.16 * sc); g.add(re);
+        // Pupilas negras
+        var pupilMat = new THREE.MeshPhongMaterial({ color: 0x000000 });
+        var lp = new THREE.Mesh(new THREE.SphereGeometry(0.02 * sc, 6, 6), pupilMat);
+        lp.position.set(0.082 * sc, 0.98 * sc, 0.195 * sc); g.add(lp);
+        var rp = new THREE.Mesh(new THREE.SphereGeometry(0.02 * sc, 6, 6), pupilMat);
+        rp.position.set(-0.082 * sc, 0.98 * sc, 0.195 * sc); g.add(rp);
+
+        // ── BRAZOS extendidos con garras ─────────────────────────────────────────────
+        var armGeo = new THREE.CylinderGeometry(0.065 * sc, 0.05 * sc, 0.62 * sc, 6);
+        var foreGeo = new THREE.CylinderGeometry(0.05 * sc, 0.04 * sc, 0.5 * sc, 6);
+        var la = new THREE.Mesh(armGeo, mm(darkCol)); la.position.set(0.32 * sc, 0.52 * sc, 0); la.rotation.z = -0.5; la.rotation.x = -0.6; g.add(la);
+        var lf = new THREE.Mesh(foreGeo, mm(skinCol)); lf.position.set(0.46 * sc, 0.32 * sc, 0.22 * sc); lf.rotation.z = -0.3; lf.rotation.x = -1.1; g.add(lf);
+        var ra = new THREE.Mesh(armGeo, mm(darkCol)); ra.position.set(-0.32 * sc, 0.48 * sc, 0); ra.rotation.z = 0.6; ra.rotation.x = -0.3; g.add(ra);
+        var rf = new THREE.Mesh(foreGeo, mm(skinCol)); rf.position.set(-0.46 * sc, 0.22 * sc, 0.12 * sc); rf.rotation.z = 0.4; rf.rotation.x = -0.8; g.add(rf);
+        // Garras
+        var clawMat = mm(boneCol, 20, boneCol, 0.2);
+        [[-0.06, 0, 0.06], [0, 0, 0.06], [0.06, 0, 0.06]].forEach(function (o) {
+            var cl = new THREE.Mesh(new THREE.ConeGeometry(0.018 * sc, 0.1 * sc, 4), clawMat);
+            cl.position.set(0.50 * sc + o[0] * sc, 0.08 * sc, 0.42 * sc + o[2] * sc); cl.rotation.x = -Math.PI / 2 + 0.4; g.add(cl);
+            var cr = new THREE.Mesh(new THREE.ConeGeometry(0.018 * sc, 0.1 * sc, 4), clawMat);
+            cr.position.set(-0.50 * sc + o[0] * sc, 0.05 * sc, 0.28 * sc + o[2] * sc); cr.rotation.x = -Math.PI / 2 + 0.4; g.add(cr);
+        });
+
+        // ── PIERNAS con rodillas huesudas ────────────────────────────────────────────
+        var legGeo = new THREE.CylinderGeometry(0.09 * sc, 0.075 * sc, 0.68 * sc, 7);
+        var ll = new THREE.Mesh(legGeo, mm(darkCol)); ll.position.set(0.13 * sc, -0.35 * sc, 0); ll.rotation.z = 0.06; g.add(ll);
+        var rl = new THREE.Mesh(legGeo, mm(darkCol)); rl.position.set(-0.13 * sc, -0.38 * sc, 0); rl.rotation.z = -0.10; g.add(rl);
+        var lk = new THREE.Mesh(new THREE.SphereGeometry(0.07 * sc, 6, 6), mm(boneCol, 12)); lk.position.set(0.13 * sc, -0.15 * sc, 0.04 * sc); g.add(lk);
+        var rk = new THREE.Mesh(new THREE.SphereGeometry(0.07 * sc, 6, 6), mm(boneCol, 12)); rk.position.set(-0.13 * sc, -0.18 * sc, 0.04 * sc); g.add(rk);
+
+        // ── VARIACIONES POR TIPO ─────────────────────────────────────────────────────
+        if (tkey === 'T') {  // Tank: hombros masivos
+            [1, -1].forEach(function (s) {
+                var sh = new THREE.Mesh(new THREE.SphereGeometry(0.20 * sc, 7, 7), mm(skinCol, 4));
+                sh.position.set(s * 0.36 * sc, 0.65 * sc, -0.04 * sc); sh.scale.set(1, 0.7, 0.9); g.add(sh);
+            });
+        }
+        if (tkey === 'F') {  // Fast: columna vertebral expuesta
+            for (var vi = 0; vi < 5; vi++) {
+                var vert = new THREE.Mesh(new THREE.SphereGeometry(0.04 * sc, 5, 5), mm(boneCol, 15, boneCol, 0.1));
+                vert.position.set(0, (0.15 + vi * 0.14) * sc, -0.18 * sc); g.add(vert);
+            }
+        }
 
         g.userData = {
             cfg: cfg, tkey: tkey, hp: cfg.hp, maxHp: cfg.hp,
