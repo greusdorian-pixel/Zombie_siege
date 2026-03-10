@@ -113,6 +113,42 @@ body {
   letter-spacing: 0.05em;
 }
 
+.menu-updates {
+  margin-top: -1rem;
+  margin-bottom: 2rem;
+  background: rgba(204, 34, 34, 0.05);
+  border: 1px solid rgba(204, 34, 34, 0.2);
+  border-radius: 10px;
+  padding: 1rem 2rem;
+  text-align: left;
+  max-width: 320px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.menu-updates h3 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.85rem;
+  color: #ff4444;
+  margin-bottom: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.menu-updates ul {
+  list-style: none;
+  font-size: 0.9rem;
+  color: #ccc;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.menu-updates li {
+  position: relative;
+  padding-left: 0.5rem;
+}
+
 .btn-primary {
   display: inline-block;
   font-family: 'Orbitron', sans-serif;
@@ -777,6 +813,23 @@ body {
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
   gap: 14px;
   margin-bottom: 16px;
+  max-height: 55vh;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.shop-grid::-webkit-scrollbar {
+  width: 6px;
+}
+
+.shop-grid::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.shop-grid::-webkit-scrollbar-thumb {
+  background: #c8960c;
+  border-radius: 4px;
 }
 
 .shop-item {
@@ -890,4 +943,110 @@ body {
   background: linear-gradient(90deg, #6b0000, #ff0000);
   width: 100%;
   transition: width 0.2s;
+}
+
+/* ── COMBO HUD ─────────────────────────────────────────────── */
+#hud-combo {
+  position: absolute;
+  top: 60px;
+  right: 16px;
+  text-align: right;
+  z-index: 100;
+  pointer-events: none;
+  animation: comboPulse 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+#hud-combo.hidden {
+  display: none;
+}
+
+#combo-multiplier {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 3rem;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 0 15px currentColor;
+  line-height: 1;
+  transition: transform 0.1s, color 0.2s;
+}
+
+#combo-text {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #aaa;
+  letter-spacing: 0.15em;
+  margin-top: -5px;
+  margin-bottom: 5px;
+}
+
+#combo-timer-bg {
+  width: 100px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+  margin-left: auto;
+  overflow: hidden;
+}
+
+#combo-timer-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #ffaa00, #ffea00);
+  transition: width 0.1s linear, background 0.2s;
+}
+
+@keyframes comboPulse {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+
+  70% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ── FLOATING POINTS ────────────────────────────────────────── */
+#floating-points-container {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 200;
+}
+
+.floating-pts {
+  position: absolute;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: #ffea00;
+  text-shadow: 0 0 10px #ffaa00, 0 0 20px #ff2200;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: floatUp 1s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+  white-space: nowrap;
+}
+
+@keyframes floatUp {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: translate(-50%, -100px) scale(1.2);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate(-50%, -150px) scale(0.8);
+    opacity: 0;
+  }
 }

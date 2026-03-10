@@ -35,6 +35,18 @@
                 <div class="control-row"><span class="key">ESPACIO</span><span>Saltar</span></div>
                 <div class="control-row"><span class="key">E</span><span>Abrir Tienda NPC</span></div>
             </div>
+
+            <!-- NOVEDADES / UPDATES -->
+            <div class="menu-updates">
+                <h3>⚡ NOVEDADES v8.0</h3>
+                <ul>
+                    <li>🔥 SISTEMA DE COMBOS X10</li>
+                    <li>🥾 PARKOUR: DOBLE SALTO</li>
+                    <li>🛰️ FOV DINÁMICO (V8.0)</li>
+                    <li>💀 PUNTAS HUECAS & SKILLS</li>
+                    <li>🌤️ CICLO DÍA/NOCHE</li>
+                </ul>
+            </div>
             <button id="btn-start" class="btn-primary">▶ EMPEZAR</button>
         </div>
     </div>
@@ -98,6 +110,16 @@
 
         <!-- HEADSHOT NOTIF (centrado) -->
         <div id="headshot-notif" class="hidden">💀 HEADSHOT!</div>
+
+        <!-- COMBO HUD -->
+        <div id="hud-combo" class="hidden">
+            <div id="combo-multiplier">x1</div>
+            <div id="combo-text">COMBO!</div>
+            <div id="combo-timer-bg">
+                <div id="combo-timer-fill"></div>
+            </div>
+        </div>
+        <div id="floating-points-container"></div>
 
         <!-- ARMA — abajo derecha -->
         <div id="hud-weapon-panel">
@@ -192,6 +214,56 @@
                     <button class="btn-buy" onclick="buyItem('vest')">1200 pts</button>
                 </div>
 
+                <div class="shop-item" id="si-dmg">
+                    <div class="item-icon">🔥</div>
+                    <div class="item-name">Punta Hueca</div>
+                    <div class="item-desc">Daño +50%</div>
+                    <button class="btn-buy" onclick="buyItem('dmg')">1800 pts</button>
+                </div>
+
+                <div class="shop-item" id="si-reload">
+                    <div class="item-icon">⏱️</div>
+                    <div class="item-name">Manos Ágiles</div>
+                    <div class="item-desc">Recarga rápida</div>
+                    <button class="btn-buy" onclick="buyItem('reload')">1500 pts</button>
+                </div>
+
+                <div class="shop-item" id="si-speed">
+                    <div class="item-icon">🥾</div>
+                    <div class="item-name">Botas Tácticas</div>
+                    <div class="item-desc">Velocidad +30%</div>
+                    <button class="btn-buy" onclick="buyItem('speed')">1200 pts</button>
+                </div>
+
+                <div class="shop-item" id="si-vampire">
+                    <div class="item-icon">🧛</div>
+                    <div class="item-name">Sifón de Sangre</div>
+                    <div class="item-desc">Cura +2 HP x Kill</div>
+                    <button class="btn-buy" onclick="buyItem('vampire')">2000 pts</button>
+                </div>
+
+                <div class="shop-item" id="si-greed">
+                    <div class="item-icon">🤑</div>
+                    <div class="item-name">Codicia</div>
+                    <div class="item-desc">Pts x2 por Kill</div>
+                    <button class="btn-buy" onclick="buyItem('greed')">2500 pts</button>
+                </div>
+
+                <div class="shop-item" id="si-explosive">
+                    <div class="item-icon">💥</div>
+                    <div class="item-name">Munición Explosiva</div>
+                    <div class="item-desc">Daño pasivo de área</div>
+                    <button class="btn-buy" onclick="buyItem('explosive')">3000 pts</button>
+                </div>
+
+                <div class="shop-item" id="si-mystery" style="border-color:#bb55ff; background:rgba(180,80,255,0.08);">
+                    <div class="item-icon">❓</div>
+                    <div class="item-name" style="color:#ee99ff;">Caja Misteriosa</div>
+                    <div class="item-desc">Efecto aleatorio</div>
+                    <button class="btn-buy" onclick="buyItem('mystery')"
+                        style="background:linear-gradient(135deg, #9933dd, #6600aa);">800 pts</button>
+                </div>
+
             </div>
             <div id="shop-msg"></div>
         </div>
@@ -201,7 +273,7 @@
     <div id="damage-overlay"></div>
 
     <!-- VERSIÓN DEL JUEGO — esquina inferior derecha -->
-    <div id="game-version">v6.0</div>
+    <div id="game-version">v8.0 — PARKOUR UPDATE</div>
 
     <!-- SCRIPTS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
