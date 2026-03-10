@@ -971,15 +971,34 @@
                 // ─── ESTADO: CHASE (Perseguir) ──────────────────────────
                 // Detectado al jugador: moverse directamente hacia él
 
-                // ── AUDIO: Reproducir gruñido al ENTRAR en CHASE por primera vez ────
-                // Solo si: transitamos de WANDER, el sonido existe, y NO está ya reproduciéndose
-                if (ud.aiState !== 'CHASE' && ud.growlSound && !ud.growlSound.isPlaying) {
-                    // Variación aleatoria de tono: evita que todos los zombies suenen idéntico
-                    // Rango 0.8 – 1.2: un poco grave o un poco agudo
-                    ud.growlSound.setPlaybackRate(0.8 + Math.random() * 0.4);
-                    // Control de errores: el AudioContext puede estar suspendido
-                    // hasta que el usuario interactúe (política de autoplay del navegador)
-                    try { ud.growlSound.play(); } catch (e) { /* AudioContext no listo aún */ }
+                // ── AUDIO FIX: Asignación lazy ───────────────────────────────────────
+                // Si el zombie no tiene growlSound (buffers no estaban listos al spawn),
+                // intentar asignarlo ahora que los buffers pueden ya estar cargados
+                if (!ud.growlSound && audioBuffersReady && audioListener) {
+                    var vBufs = zombieAudioBuffers.filter(function (b) { return !!b; });
+                    if (vBufs.length > 0) {
+                        var g2 = new THREE.PositionalAudio(audioListener);
+                        g2.setBuffer(vBufs[Math.floor(Math.random() * vBufs.length)]);
+                        g2.setRefDistance(5);
+                        g2.setMaxDistance(40);
+                        g2.setRolloffFactor(2);
+                        g2.setLoop(false);
+                        m.add(g2);
+                        ud.growlSound = g2;
+                    }
+                }
+
+                // ── AUDIO: Reproducir gruñido periódicamente en CHASE ────────────────
+                // Usamos un timer (ud.growlT) para repetir el sonido cada 4-8 segundos
+                // En lugar de dispararlo solo en la transición (que fallaba si growlSound era null)
+                if (ud.growlSound) {
+                    ud.growlT = (ud.growlT || 0) - dt;
+                    if (ud.growlT <= 0 && !ud.growlSound.isPlaying) {
+                        ud.growlSound.setPlaybackRate(0.8 + Math.random() * 0.4);
+                        try { ud.growlSound.play(); } catch (e) { /* AudioContext suspendido */ }
+                        // Próximo gruñido: entre 4 y 8 segundos aleatorios
+                        ud.growlT = 4 + Math.random() * 4;
+                    }
                 }
                 // ─────────────────────────────────────────────────────────────────────
 
