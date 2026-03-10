@@ -1174,7 +1174,7 @@
         var sx, sz, valid = false;
         for (var i = 0; i < 30; i++) {
             var ang = Math.random() * Math.PI * 2;
-            var dist = tkey === 'BOSS' ? 25 : 20 + Math.random() * 25;
+            var dist = tkey === 'BOSS' ? 35 : 30 + Math.random() * 30;
             sx = player.px + Math.cos(ang) * dist;
             sz = player.pz + Math.sin(ang) * dist;
 
@@ -1996,6 +1996,9 @@
         wModels.forEach(function (m, i) { m.visible = (i === 0); });
         domCross.className = '';
 
+        // Pre-inicializar ronda 1 para el HUD
+        round = 1;
+
         domMenu.classList.add('hidden');
         domGameover.classList.add('hidden');
         domHud.classList.remove('hidden');
@@ -2007,7 +2010,9 @@
     }
 
     function nextRound() {
-        round++;
+        // round se incrementa naturalmente pero startGame ya lo pone en 1
+        if (state === GS.MENU || state === GS.GAMEOVER) round = 1;
+        else round++;
 
         // ─ NPC: ocultar al comenzar la ronda ──────────────────────────────────
         if (shopNpc) shopNpc.visible = false;
@@ -2136,7 +2141,8 @@
         var w = WDATA[wIdx];
         domWeapon.textContent = w.name;
         domAmmo.textContent = ammo + ' / ' + w.mag;
-        domRoundTxt.textContent = 'RONDA ' + round;
+        // Fix: No sobreescribir el span de la versión
+        domRoundTxt.innerHTML = 'RONDA ' + round + ' <span class="v-label" style="font-size:0.6rem; opacity:0.5; margin-left:8px;">' + GAME_VERSION + '</span>';
         domZombies.textContent = 'Zombies: ' + killedZ + ' / ' + totalZ;
         domScore.textContent = 'Dinero: $' + score; // ¡Actualizado a Dinero!
         domKills.textContent = 'Kills: ' + kills;
