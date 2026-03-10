@@ -127,7 +127,7 @@
     var domHud, domHealth, domHealthText, domHealthFill;
     var domWeapon, domAmmo, domReloadBg, domReloadFill;
     var domRoundTxt, domZombies, domScore, domKills;
-    var domDamage, domCross, domUnlock, domNpcPrompt;
+    var domDamage, domCross, domNpcPrompt;
     var domStaminaFill, domStaminaLabel, domHeadshotNotif;
     var mmCtx;
 
@@ -240,7 +240,6 @@
         domKills = document.getElementById('hud-kills');
         domDamage = document.getElementById('damage-overlay');
         domCross = document.getElementById('crosshair');
-        domUnlock = document.getElementById('unlock-notif');
         domNpcPrompt = document.getElementById('npc-prompt');
         domStaminaFill = document.getElementById('hud-stamina-fill');
         domStaminaLabel = document.getElementById('hud-stamina-label');
@@ -891,16 +890,18 @@
     }
 
     function spawnZombie(tkey) {
-        // Buscar punto de spawn válido (hasta 10 intentos)
+        // Mejorado: Spawn en un área aleatoria (de hasta 45 unidades de radio) NO centrada tan cerca
         var sx, sz, valid = false;
-        for (var i = 0; i < 10; i++) {
+        for (var i = 0; i < 20; i++) {
             var ang = Math.random() * Math.PI * 2;
-            var dist = tkey === 'BOSS' ? 20 : 18 + Math.random() * 10;
+            var dist = tkey === 'BOSS' ? 25 : 20 + Math.random() * 25;
             sx = player.px + Math.cos(ang) * dist;
             sz = player.pz + Math.sin(ang) * dist;
-            if (canMove(sx, sz)) { valid = true; break; }
+            // No permitir span dentro de edificios y mantenerlos dentro de -45 a 45
+            if (sx > -45 && sx < 45 && sz > -45 && sz < 45 && canMove(sx, sz)) { valid = true; break; }
         }
-        if (!valid) { sx = player.px + 2; sz = player.pz + 2; } // Fallback
+        // Si no pilló nada después de 20 intentos, se apoya lejos del centro
+        if (!valid) { sx = (Math.random() < 0.5 ? -40 : 40); sz = (Math.random() < 0.5 ? -40 : 40); }
 
         var m = makeZombie(tkey);
         m.position.set(sx, -2.5, sz);
@@ -908,10 +909,7 @@
         zombies.push({ mesh: m, ud: m.userData });
         spawnDust(sx, 0, sz);
         // Anuncio especial para el BOSS
-        if (tkey === 'BOSS') {
-            showNotif('\u2620\uFE0F ¡JEFE APARECE!');
-            setTimeout(hideNotif, 3000);
-        }
+        if (tkey === 'BOSS') shopMsg('\u2620\uFE0F ¡JEFE APARECE!', false);
     }
 
     // ──────────────────────────────────────────────
@@ -1528,12 +1526,6 @@
         if (shopOpen) closeShop();
         if (domNpcPrompt) domNpcPrompt.classList.add('hidden');
 
-        // Check unlocks (solo pistola garantizada; resto por tienda)
-        // Mantenemos unlocked[0] siempre disponible
-        var newUnlock = null;
-
-        WDATA.forEach(function (w, i) { if (w.unlock === round && unlocked.indexOf(i) < 0) { unlocked.push(i); newUnlock = w.name; } });
-
         // Build spawn queue
         var wCfg = round <= WAVES.length ? WAVES[round - 1] : extraWave(round);
         spawnQueue = [];
@@ -1548,7 +1540,7 @@
 
         state = GS.COUNTDOWN;
         playRoundStart();
-        showRoundScreen(round, newUnlock);
+        showRoundScreen(round);
     }
 
     function extraWave(r) {
@@ -1599,11 +1591,10 @@
             if (!shopNpc) { shopNpc = makeShopNpc(); scene.add(shopNpc); }
             else shopNpc.visible = true;
             npcVisible = true;
-            showNotif('✅ ¡RONDA ' + round + ' COMPLETADA! 🛒 ¡Tienda disponible por 30s!');
-            setTimeout(function () { hideNotif(); nextRound(); }, 30000); // 30 segundos
+            shopMsg('🛒 ¡Tienda disponible por 30s!', true);
+            setTimeout(function () { nextRound(); }, 30000); // 30 segundos
         } else {
-            showNotif('✅ ¡RONDA ' + round + ' COMPLETADA!');
-            setTimeout(function () { hideNotif(); nextRound(); }, 4000);  // 4 segundos normal
+            setTimeout(function () { nextRound(); }, 4000);  // 4 segundos normal
         }
     }
 
