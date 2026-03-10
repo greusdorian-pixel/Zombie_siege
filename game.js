@@ -8,7 +8,7 @@
     // ──────────────────────────────────────────────
     // CONSTANTES
     // ──────────────────────────────────────────────
-    var GS = { MENU: 'menu', COUNTDOWN: 'countdown', PLAYING: 'playing', ROUND_COMPLETE: 'round_complete', GAMEOVER: 'gameover' };
+    var GS = { MENU: 'menu', COUNTDOWN: 'countdown', PLAYING: 'playing', ROUND_COMPLETE: 'round_complete', GAMEOVER: 'gameover', SHOP: 'shop' };
 
     var WDATA = [
         { id: 0, name: 'PISTOLA', dmg: 25, mag: 12, reload: 1.5, rate: 0.25, auto: false, pellets: 1, spread: 0.0, unlock: 1, shakeI: 0.03, shakeD: 0.10, score: 10 },
@@ -115,12 +115,19 @@
     var zombieAudioBuffers = [];    // Buffers pre-cargados [zombie1, zombie2, zombie3]
     var audioBuffersReady = false;  // Flag: buffers listos para usar
 
+    // ── NPC / TIENDA ────────────────────────────────────────────────────────────
+    var shopNpc = null;          // Mesh del NPC mercader
+    var shopOpen = false;        // ¿tienda abierta ahora?
+    var shopAudioBuffer = null;  // buffer del sonido de tienda
+    var npcVisible = false;      // ¿NPC visible en el mapa?
+    var NPC_POS = { x: 8, z: 8 }; // posición fija del NPC en el mapa
+
     // DOM refs
-    var domMenu, domRound, domGameover;
+    var domMenu, domRound, domGameover, domShop;
     var domHud, domHealth, domHealthText, domHealthFill;
     var domWeapon, domAmmo, domReloadBg, domReloadFill;
     var domRoundTxt, domZombies, domScore, domKills;
-    var domDamage, domCross, domUnlock;
+    var domDamage, domCross, domUnlock, domNpcPrompt;
     var domStaminaFill, domStaminaLabel, domHeadshotNotif;
     var mmCtx;
 
@@ -165,14 +172,18 @@
         buildWeapons();
         buildInput();
 
-        // ── AUDIO: Crear Listener y pre-cargar buffers de zombies ─────────────────
-        // El AudioListener representa los "oídos" del jugador: se adjunta a la cámara
+        // ── AUDIO: Crear Listener y pre-cargar buffers de zombies + tienda ─────────
         audioListener = new THREE.AudioListener();
         camera.add(audioListener);
 
-        // AudioLoader carga los archivos .ogg y guarda cada buffer en el array global
-        // Hacemos esto UNA SOLA VEZ al inicio (no en cada spawn de zombie)
         var audioLoader = new THREE.AudioLoader();
+        // Audio de tienda
+        audioLoader.load('sound/TIENDAOSOUND.ogg',
+            function (buf) { shopAudioBuffer = buf; },
+            null,
+            function () { console.warn('[ZombieSiege] No se pudo cargar TIENDAOSOUND.ogg'); }
+        );
+        // Buffers de zombies
         var soundFiles = [
             'sound/zombie.ogg',
             'sound/zombie2.ogg',
@@ -215,6 +226,7 @@
         domMenu = document.getElementById('screen-menu');
         domRound = document.getElementById('screen-round');
         domGameover = document.getElementById('screen-gameover');
+        domShop = document.getElementById('screen-shop');
         domHud = document.getElementById('hud');
         domHealthFill = document.getElementById('hud-health-fill');
         domHealthText = document.getElementById('hud-health-text');
@@ -229,12 +241,169 @@
         domDamage = document.getElementById('damage-overlay');
         domCross = document.getElementById('crosshair');
         domUnlock = document.getElementById('unlock-notif');
+        domNpcPrompt = document.getElementById('npc-prompt');
         domStaminaFill = document.getElementById('hud-stamina-fill');
         domStaminaLabel = document.getElementById('hud-stamina-label');
         domHeadshotNotif = document.getElementById('headshot-notif');
         var mm = document.getElementById('minimap-canvas');
         if (mm) mmCtx = mm.getContext('2d');
     }
+
+    // ── NPC MERCADER 3D ────────────────────────────────────────────────────────
+    function makeShopNpc() {
+        var g = new THREE.Group();
+        var gold = new THREE.MeshPhongMaterial({ color: 0xd4a520, shininess: 60, emissive: new THREE.Color(0x664800), emissiveIntensity: 0.4 });
+        var dark = new THREE.MeshPhongMaterial({ color: 0x2a1a05, shininess: 20 });
+        var cloak = new THREE.MeshPhongMaterial({ color: 0x3b0d0d, shininess: 10, emissive: new THREE.Color(0x1a0505), emissiveIntensity: 0.3 });
+        // Cuerpo (capa)
+        var body = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 1.1, 8), cloak);
+        body.position.y = 0.55; g.add(body);
+        // Cabeza
+        var head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), gold);
+        head.position.y = 1.32; g.add(head);
+        // Sombrero (troncocono)
+        var hat = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.22, 0.35, 8), dark);
+        hat.position.y = 1.58; g.add(hat);
+        var brim = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.30, 0.04, 8), dark);
+        brim.position.y = 1.42; g.add(brim);
+        // Ojos brillantes dorados
+        var eyeM = new THREE.MeshPhongMaterial({ color: 0xffee00, emissive: new THREE.Color(0xffcc00), emissiveIntensity: 2, shininess: 100 });
+        var le = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 6), eyeM); le.position.set(0.07, 1.34, 0.17); g.add(le);
+        var re = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 6), eyeM); re.position.set(-0.07, 1.34, 0.17); g.add(re);
+        // Bolsa de dinero en la mano derecha
+        var bag = new THREE.Mesh(new THREE.SphereGeometry(0.12, 7, 7), gold);
+        bag.position.set(0.42, 0.6, 0.1); g.add(bag);
+        var bagStr = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.15, 5), gold);
+        bagStr.position.set(0.42, 0.73, 0.1); g.add(bagStr);
+        // Luz puntual dorada encima del NPC
+        var npcLight = new THREE.PointLight(0xffcc44, 1.8, 10);
+        npcLight.position.set(0, 2.5, 0); g.add(npcLight);
+        // Signo flotante "$"
+        g.position.set(NPC_POS.x, 0, NPC_POS.z);
+        return g;
+    }
+
+    // ── FUNCIONES DE TIENDA ─────────────────────────────────────────────────
+    function openShop() {
+        if (shopOpen || !npcVisible) return;
+        shopOpen = true;
+        state = GS.SHOP;
+        document.exitPointerLock();
+        if (domShop) domShop.classList.remove('hidden');
+        // Reproducir sonido de tienda
+        if (audioListener && shopAudioBuffer) {
+            var shopSnd = new THREE.Audio(audioListener);
+            shopSnd.setBuffer(shopAudioBuffer);
+            shopSnd.setVolume(0.9);
+            try { shopSnd.play(); } catch (e) { }
+        }
+        updateShopUI();
+    }
+    function closeShop() {
+        if (!shopOpen) return;
+        shopOpen = false;
+        state = GS.PLAYING;
+        if (domShop) domShop.classList.add('hidden');
+        document.getElementById('gameCanvas').requestPointerLock();
+    }
+    // Exponer para los onclick del HTML
+    window.closeShopFromDom = closeShop;
+
+    function shopMsg(txt, ok) {
+        var el = document.getElementById('shop-msg');
+        if (!el) return;
+        el.textContent = txt;
+        el.style.color = ok ? '#44ff88' : '#ff5555';
+        clearTimeout(shopMsg._t);
+        shopMsg._t = setTimeout(function () { el.textContent = ''; }, 2200);
+    }
+
+    function buyItem(id) {
+        var cost = 0, msg = '';
+        switch (id) {
+            case 'medkit':
+                cost = 500;
+                if (score < cost) { shopMsg('\u274C Necesitas ' + cost + ' pts', false); return; }
+                score -= cost;
+                player.hp = Math.min(player.maxHp, player.hp + 50);
+                msg = '\u2764\uFE0F +50 HP';
+                break;
+            case 'ammo':
+                cost = 250;
+                if (score < cost) { shopMsg('\u274C Necesitas ' + cost + ' pts', false); return; }
+                score -= cost;
+                ammo = WDATA[wIdx].mag;
+                msg = '\uD83D\uDD2B Munici\u00F3n recargada';
+                break;
+            case 'shotgun':
+                cost = 1000;
+                if (unlocked.indexOf(1) >= 0) { shopMsg('Ya tienes la Escopeta', false); return; }
+                if (score < cost) { shopMsg('\u274C Necesitas ' + cost + ' pts', false); return; }
+                score -= cost; unlocked.push(1);
+                msg = '\uD83D\uDCA5 Escopeta desbloqueada!';
+                break;
+            case 'smg':
+                cost = 2000;
+                if (unlocked.indexOf(2) >= 0) { shopMsg('Ya tienes la Metralleta', false); return; }
+                if (score < cost) { shopMsg('\u274C Necesitas ' + cost + ' pts', false); return; }
+                score -= cost; unlocked.push(2);
+                msg = '\u26A1 Metralleta desbloqueada!';
+                break;
+            case 'sniper':
+                cost = 3000;
+                if (unlocked.indexOf(3) >= 0) { shopMsg('Ya tienes el Sniper', false); return; }
+                if (score < cost) { shopMsg('\u274C Necesitas ' + cost + ' pts', false); return; }
+                score -= cost; unlocked.push(3);
+                msg = '\uD83C\uDFAF Sniper desbloqueado!';
+                break;
+            case 'energy':
+                cost = 1500;
+                if (maxStamina >= 150) { shopMsg('Stamina ya al m\u00E1ximo', false); return; }
+                if (score < cost) { shopMsg('\u274C Necesitas ' + cost + ' pts', false); return; }
+                score -= cost; maxStamina = 150;
+                msg = '\u26A1 Stamina m\u00E1x. +50!';
+                break;
+            case 'vest':
+                cost = 2000;
+                if (player.maxHp >= 150) { shopMsg('Chaleco ya equipado', false); return; }
+                if (score < cost) { shopMsg('\u274C Necesitas ' + cost + ' pts', false); return; }
+                score -= cost; player.maxHp = 150;
+                msg = '\uD83D\uDEE1\uFE0F Chaleco antibalas equipado!';
+                break;
+            default: return;
+        }
+        shopMsg(msg, true);
+        updateHUD();
+        updateShopUI();
+    }
+    window.buyItem = buyItem;
+
+    function updateShopUI() {
+        var moneyEl = document.getElementById('shop-money');
+        if (moneyEl) moneyEl.textContent = '\uD83D\uDCB0 ' + score + ' pts';
+        // Armas ya desbloqueadas
+        var wmap = { shotgun: 1, smg: 2, sniper: 3 };
+        Object.keys(wmap).forEach(function (k) {
+            var btn = document.querySelector('#si-' + k + ' .btn-buy');
+            if (!btn) return;
+            if (unlocked.indexOf(wmap[k]) >= 0) {
+                btn.textContent = '\u2713 Comprado';
+                btn.classList.add('owned');
+                btn.disabled = true;
+            }
+        });
+        // Vest
+        var vestBtn = document.querySelector('#si-vest .btn-buy');
+        if (vestBtn && player.maxHp >= 150) { vestBtn.textContent = '\u2713 Equipado'; vestBtn.classList.add('owned'); vestBtn.disabled = true; }
+        // Energy
+        var energyBtn = document.querySelector('#si-energy .btn-buy');
+        if (energyBtn && maxStamina >= 150) { energyBtn.textContent = '\u2713 M\u00E1ximo'; energyBtn.classList.add('owned'); energyBtn.disabled = true; }
+    }
+
+    // Cerrar tienda con ESC
+    document.addEventListener('keydown', function (e) {
+        if (e.code === 'Escape' && shopOpen) { closeShop(); }
+    });
 
     // ──────────────────────────────────────────────
     // AUDIO
@@ -486,6 +655,11 @@
             if (e.code === 'Digit3') trySwitch(2);
             if (e.code === 'Digit4') trySwitch(3);
             if (e.code === 'KeyR' && !reloading) doReload();
+            // Tecla E — interacción con NPC
+            if (e.code === 'KeyE' && npcVisible && !shopOpen) {
+                var ddx = player.px - NPC_POS.x, ddz = player.pz - NPC_POS.z;
+                if (Math.sqrt(ddx * ddx + ddz * ddz) < 6) openShop();
+            }
         });
         document.addEventListener('keyup', function (e) { keys[e.code] = false; });
         document.addEventListener('mousedown', function (e) {
@@ -1023,7 +1197,15 @@
 
         // ─── 7. ANIMACIÓN PROCEDURAL DEL ARMA ──────────────────────────────────
         updateWeaponAnimation(dt, isMoving, canSprint && isMoving);
+
+        // ─── 8. NPC PROXIMIDAD — mostrar/ocultar prompt E ───────────────────────
+        if (npcVisible && domNpcPrompt) {
+            var ndx = player.px - NPC_POS.x, ndz = player.pz - NPC_POS.z;
+            if (Math.sqrt(ndx * ndx + ndz * ndz) < 6) domNpcPrompt.classList.remove('hidden');
+            else domNpcPrompt.classList.add('hidden');
+        }
     }
+
 
     // ─────────────────────────────────────────────────────────────────
     // WEAPON ANIMATION: Bobbing (caminar/correr) + Sway (recoil visual)
@@ -1329,8 +1511,17 @@
 
     function nextRound() {
         round++;
-        // Check unlocks
+
+        // ─ NPC: ocultar al comenzar la ronda ──────────────────────────────────
+        if (shopNpc) shopNpc.visible = false;
+        npcVisible = false;
+        if (shopOpen) closeShop();
+        if (domNpcPrompt) domNpcPrompt.classList.add('hidden');
+
+        // Check unlocks (solo pistola garantizada; resto por tienda)
+        // Mantenemos unlocked[0] siempre disponible
         var newUnlock = null;
+
         WDATA.forEach(function (w, i) { if (w.unlock === round && unlocked.indexOf(i) < 0) { unlocked.push(i); newUnlock = w.name; } });
 
         // Build spawn queue
@@ -1391,10 +1582,21 @@
     function endRound() {
         if (state !== GS.PLAYING) return;
         playRoundEnd();
-        showNotif('✅ ¡RONDA ' + round + ' COMPLETADA!');
         state = GS.ROUND_COMPLETE;
+
+        // ─ NPC: aparece en rondas múltiplo de 3 (Ronda 3, 6, 9…) ─────────────
+        if (round % 3 === 0) {
+            if (!shopNpc) { shopNpc = makeShopNpc(); scene.add(shopNpc); }
+            else shopNpc.visible = true;
+            npcVisible = true;
+            showNotif('✅ ¡RONDA ' + round + ' COMPLETADA! 🛒 ¡Tienda disponible!');
+        } else {
+            showNotif('✅ ¡RONDA ' + round + ' COMPLETADA!');
+        }
+
         setTimeout(function () { hideNotif(); nextRound(); }, 2800);
     }
+
 
     function gameOver() {
         if (state === GS.GAMEOVER) return;

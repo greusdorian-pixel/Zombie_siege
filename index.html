@@ -33,6 +33,7 @@
                 <div class="control-row"><span class="key">SHIFT</span><span>Correr</span></div>
                 <div class="control-row"><span class="key">CLICK DER.</span><span>Zoom (Sniper)</span></div>
                 <div class="control-row"><span class="key">ESPACIO</span><span>Saltar</span></div>
+                <div class="control-row"><span class="key">E</span><span>Abrir Tienda NPC</span></div>
             </div>
             <button id="btn-start" class="btn-primary">▶ EMPEZAR</button>
         </div>
@@ -121,13 +122,83 @@
         <!-- NOTIFICACIÓN DE DESBLOQUEO -->
         <div id="unlock-notif" class="hidden"></div>
 
+        <!-- PROMPT DE INTERACCIÓN NPC -->
+        <div id="npc-prompt" class="hidden">🛒 Presiona <strong>E</strong> para abrir la Tienda</div>
+
+    </div>
+
+    <!-- ============================================================
+     TIENDA NPC — Overlay de pausa
+     ============================================================ -->
+    <div id="screen-shop" class="hidden">
+        <div class="shop-panel">
+            <div class="shop-header">
+                <span class="shop-icon">🛒</span>
+                <h2>TIENDA DEL SUPERVIVIENTE</h2>
+                <div id="shop-money">💰 0 pts</div>
+                <button id="shop-close" onclick="closeShopFromDom()">✕ CERRAR [ESC]</button>
+            </div>
+            <div class="shop-grid">
+
+                <div class="shop-item" id="si-medkit">
+                    <div class="item-icon">❤️</div>
+                    <div class="item-name">Botiquín</div>
+                    <div class="item-desc">+50 HP</div>
+                    <button class="btn-buy" onclick="buyItem('medkit')">500 pts</button>
+                </div>
+
+                <div class="shop-item" id="si-ammo">
+                    <div class="item-icon">🔫</div>
+                    <div class="item-name">Munición Máx.</div>
+                    <div class="item-desc">Recarga completa</div>
+                    <button class="btn-buy" onclick="buyItem('ammo')">250 pts</button>
+                </div>
+
+                <div class="shop-item" id="si-shotgun">
+                    <div class="item-icon">💥</div>
+                    <div class="item-name">Escopeta</div>
+                    <div class="item-desc">Desbloquear arma</div>
+                    <button class="btn-buy" onclick="buyItem('shotgun')">1000 pts</button>
+                </div>
+
+                <div class="shop-item" id="si-smg">
+                    <div class="item-icon">⚡</div>
+                    <div class="item-name">Metralleta</div>
+                    <div class="item-desc">Desbloquear arma</div>
+                    <button class="btn-buy" onclick="buyItem('smg')">2000 pts</button>
+                </div>
+
+                <div class="shop-item" id="si-sniper">
+                    <div class="item-icon">🎯</div>
+                    <div class="item-name">Sniper</div>
+                    <div class="item-desc">Desbloquear arma</div>
+                    <button class="btn-buy" onclick="buyItem('sniper')">3000 pts</button>
+                </div>
+
+                <div class="shop-item" id="si-energy">
+                    <div class="item-icon">⚡</div>
+                    <div class="item-name">Bebida Energética</div>
+                    <div class="item-desc">Stamina máx. +50</div>
+                    <button class="btn-buy" onclick="buyItem('energy')">1500 pts</button>
+                </div>
+
+                <div class="shop-item" id="si-vest">
+                    <div class="item-icon">🛡️</div>
+                    <div class="item-name">Chaleco Antibalas</div>
+                    <div class="item-desc">Vida máx. → 150</div>
+                    <button class="btn-buy" onclick="buyItem('vest')">2000 pts</button>
+                </div>
+
+            </div>
+            <div id="shop-msg"></div>
+        </div>
     </div>
 
     <!-- OVERLAY DE DAÑO (viñeta roja) -->
     <div id="damage-overlay"></div>
 
     <!-- VERSIÓN DEL JUEGO — esquina inferior derecha -->
-    <div id="game-version">v5.2</div>
+    <div id="game-version">v5.3</div>
 
     <!-- SCRIPTS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
