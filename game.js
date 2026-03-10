@@ -583,8 +583,9 @@
                 growl.setRefDistance(5);
                 // setMaxDistance: más allá de 40 unidades no se escucha
                 growl.setMaxDistance(40);
-                // setRolloffFactor: velocidad con que baja el volumen al alejarse (2 = rápido)
+                // setRolloffFactor: velocidad con que baja el volumen al alejarse
                 growl.setRolloffFactor(2);
+                growl.setVolume(3.0);   // volumen al 300% — bien audible
                 growl.setLoop(false);
                 // Agregar el audio como hijo de la malla para que siga la posición del zombie
                 g.add(growl);
@@ -752,7 +753,25 @@
         kills++; killedZ++; score += ud.cfg.pts;
         spawnDeath(pos, ud.tkey === 'T');
         if (ud.tkey === 'T') doShake(0.3, 0.35);
-        playDeath();
+        playDeath();   // tono sintético original
+
+        // ── SONIDO DE MUERTE: reproducir gruñido del zombie al morir ──────────────
+        // Usamos un THREE.Audio global (no posicional) para que suene fuerte
+        // sin importar a qué distancia estaba el zombie
+        if (audioListener && audioBuffersReady) {
+            var deathBufs = zombieAudioBuffers.filter(function (b) { return !!b; });
+            if (deathBufs.length > 0) {
+                var deathSound = new THREE.Audio(audioListener);
+                deathSound.setBuffer(deathBufs[Math.floor(Math.random() * deathBufs.length)]);
+                deathSound.setVolume(1.8);          // bien audible pero no ensordecedor
+                deathSound.setPlaybackRate(0.5 + Math.random() * 0.35); // más grave = agonía
+                try { deathSound.play(); } catch (e) { }
+                // Limpiar el objeto Audio de memoria cuando termina
+                deathSound.onEnded = function () { deathSound.disconnect(); };
+            }
+        }
+        // ─────────────────────────────────────────────────────────────────────────
+
         updateHUD();
         // comprobar ronda completada
         if (killedZ >= totalZ && spawnQueue.length === 0) {
@@ -982,6 +1001,7 @@
                         g2.setRefDistance(5);
                         g2.setMaxDistance(40);
                         g2.setRolloffFactor(2);
+                        g2.setVolume(3.0);   // volumen al 300%
                         g2.setLoop(false);
                         m.add(g2);
                         ud.growlSound = g2;
