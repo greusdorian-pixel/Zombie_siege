@@ -31,10 +31,10 @@
             <div class="menu-updates">
                 <h3>⚡ NOVEDADES v8.1</h3>
                 <ul>
+                    <li>🛰️ INTERFACE LIVE UPDATE</li>
                     <li>🔥 SISTEMA DE COMBOS X10</li>
                     <li>🥾 PARKOUR: DOBLE SALTO</li>
                     <li>🛰️ FOV DINÁMICO (V8.0)</li>
-                    <li>💀 PUNTAS HUECAS & SKILLS</li>
                     <li>🌤️ CICLO DÍA/NOCHE</li>
                 </ul>
             </div>
@@ -144,13 +144,30 @@
             <div id="hud-kills">Kills: 0</div>
         </div>
 
-        <!-- MINIMAPA — arriba izquierda -->
-        <div id="hud-minimap">
-            <canvas id="minimap-canvas" width="120" height="120"></canvas>
-        </div>
+    </div>
 
-        <!-- PROMPT DE INTERACCIÓN NPC -->
-        <div id="npc-prompt" class="hidden">🛒 Presiona <strong>E</strong> para abrir la Tienda</div>
+    <!-- NOTIFICACIONES DE ACTUALIZACIÓN EN VIVO (HUD) -->
+    <div id="hud-update-notif" class="hidden">
+        <div class="notif-header">⚡ SYSTEM UPDATE</div>
+        <div id="notif-text">Inicializando...</div>
+    </div>
+
+    <!-- INDICADORES DE HABILIDADES ADQUIRIDAS -->
+    <div id="hud-skills-badges">
+        <div id="badge-dmg" class="badge hidden" title="Punta Hueca (Daño x1.5)">🔥</div>
+        <div id="badge-reload" class="badge hidden" title="Manos Ágiles (Recarga rápida)">⏱️</div>
+        <div id="badge-speed" class="badge hidden" title="Botas Tácticas (Velocidad +30%)">🥾</div>
+        <div id="badge-vampire" class="badge hidden" title="Sifón de Sangre (Cura x Kill)">🧛</div>
+        <div id="badge-explosive" class="badge hidden" title="Munición Explosiva">💥</div>
+    </div>
+
+    <!-- MINIMAPA — arriba izquierda -->
+    <div id="hud-minimap">
+        <canvas id="minimap-canvas" width="120" height="120"></canvas>
+    </div>
+
+    <!-- PROMPT DE INTERACCIÓN NPC -->
+    <div id="npc-prompt" class="hidden">🛒 Presiona <strong>E</strong> para abrir la Tienda</div>
 
     </div>
 

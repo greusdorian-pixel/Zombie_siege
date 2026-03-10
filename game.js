@@ -455,6 +455,7 @@
             default: return;
         }
         shopMsg(msg, true);
+        systemUpdate(msg);
         updateHUD();
         updateShopUI();
     }
@@ -871,6 +872,7 @@
     // ──────────────────────────────────────────────
     function buildInput() {
         document.addEventListener('keydown', function (e) {
+            if (!e.code) return; // Prevent freeze on strange keys
             keys[e.code] = true;
             if (state !== GS.PLAYING && state !== GS.ROUND_COMPLETE) return;
             if (e.code === 'Digit1') trySwitch(0);
@@ -2027,6 +2029,8 @@
         state = GS.COUNTDOWN;
         playRoundStart();
         showRoundScreen(round);
+        updateHUD(); // Forzar actualización al inicio de ronda
+        systemUpdate('ZOMBIES DETECTADOS: ' + totalZ);
     }
 
     function extraWave(r) {
@@ -2110,11 +2114,18 @@
     // ──────────────────────────────────────────────
     // HUD UPDATE
     // ──────────────────────────────────────────────
-    var _lastHUDHP = -1;
+    var _lastHUDHP = -1, _lastHUDRound = -1, _lastHUDScore = -1, _lastHUDAmmo = -1, _lastHUDW = -1;
+    var domUpdateNotif = document.getElementById('hud-update-notif');
+    var domNotifText = document.getElementById('notif-text');
+    var _notifTimer = null;
     function updateHUD() {
         if (!domHealthFill) return;
-        if (player.hp === _lastHUDHP) return; // Optimización visual
-        _lastHUDHP = player.hp;
+        // Optimización completa para evitar recálculos DOM innecesarios
+        if (player.hp === _lastHUDHP && round === _lastHUDRound &&
+            score === _lastHUDScore && ammo === _lastHUDAmmo && wIdx === _lastHUDW) return;
+
+        _lastHUDHP = player.hp; _lastHUDRound = round;
+        _lastHUDScore = score; _lastHUDAmmo = ammo; _lastHUDW = wIdx;
         var pct = player.hp / player.maxHp;
         domHealthFill.style.width = (pct * 100) + '%';
         var col = pct > 0.5 ? 'linear-gradient(90deg,#22cc44,#44ff66)' : pct > 0.25 ? 'linear-gradient(90deg,#ffaa00,#ffcc44)' : 'linear-gradient(90deg,#cc2222,#ff4444)';
@@ -2128,6 +2139,31 @@
         domScore.textContent = 'Dinero: $' + score; // ¡Actualizado a Dinero!
         domKills.textContent = 'Kills: ' + kills;
         updateDamageOverlay();
+        updateSkillBadges();
+    }
+
+    function updateSkillBadges() {
+        var badges = {
+            'dmg': skillDmg, 'reload': skillReload, 'speed': skillSpeed,
+            'vampire': skillVampire, 'explosive': skillExplosive
+        };
+        for (var k in badges) {
+            var el = document.getElementById('badge-' + k);
+            if (el) {
+                if (badges[k]) el.classList.remove('hidden');
+                else el.classList.add('hidden');
+            }
+        }
+    }
+
+    function systemUpdate(txt) {
+        if (!domUpdateNotif || !domNotifText) return;
+        domNotifText.textContent = txt;
+        domUpdateNotif.classList.remove('hidden');
+        if (_notifTimer) clearTimeout(_notifTimer);
+        _notifTimer = setTimeout(function () {
+            domUpdateNotif.classList.add('hidden');
+        }, 4000);
     }
 
     function updateReloadBar(dt) {
