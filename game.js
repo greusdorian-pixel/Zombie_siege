@@ -1296,12 +1296,14 @@
     // ── Función de colisión AABB ──────────────────
     function canMove(nx, nz) {
         var groundY = EYE_HEIGHT;
-        for (var i = 0; i < mapBounds.length; i++) {
+        var current_py = player_py;
+        // Si el mapa es muy grande, esta iteración es pesada. 
+        // Por ahora optimizamos evitando que zombies llamen a esto si están lejos.
+        for (var i = 0, len = mapBounds.length; i < len; i++) {
             var b = mapBounds[i];
             if (nx > b.minX && nx < b.maxX && nz > b.minZ && nz < b.maxZ) {
-                // Si el jugador está suficientemente alto (parkour), puede estar sobre el objeto
-                if (player_py >= b.maxY + EYE_HEIGHT - 0.3) {
-                    groundY = Math.max(groundY, b.maxY + EYE_HEIGHT);
+                if (current_py >= b.maxY + EYE_HEIGHT - 0.4) {
+                    if (b.maxY + EYE_HEIGHT > groundY) groundY = b.maxY + EYE_HEIGHT;
                     continue;
                 }
                 return { can: false, groundY: groundY };
@@ -1427,13 +1429,16 @@
         if (audioListener && audioBuffersReady) {
             var deathBufs = zombieAudioBuffers.filter(function (b) { return !!b; });
             if (deathBufs.length > 0) {
-                var deathSound = new THREE.Audio(audioListener);
-                deathSound.setBuffer(deathBufs[Math.floor(Math.random() * deathBufs.length)]);
-                deathSound.setVolume(1.8);          // bien audible pero no ensordecedor
-                deathSound.setPlaybackRate(0.5 + Math.random() * 0.35); // más grave = agonía
-                try { deathSound.play(); } catch (e) { }
-                // Limpiar el objeto Audio de memoria cuando termina
-                deathSound.onEnded = function () { deathSound.disconnect(); };
+                // Pooling simple: límite de 4 sonidos de muerte simultáneos
+                if (!window._deathPool) window._deathPool = [];
+                window._deathPool = window._deathPool.filter(function (s) { return s.isPlaying; });
+                if (window._deathPool.length < 5) {
+                    var deathSound = new THREE.Audio(audioListener);
+                    deathSound.setBuffer(deathBufs[Math.floor(Math.random() * deathBufs.length)]);
+                    deathSound.setVolume(1.5);
+                    deathSound.setPlaybackRate(0.5 + Math.random() * 0.4);
+                    try { deathSound.play(); window._deathPool.push(deathSound); } catch (e) { }
+                }
             }
         }
         // ─────────────────────────────────────────────────────────────────────────
@@ -1669,8 +1674,14 @@
     // ──────────────────────────────────────────────
     function updateZombies(dt) {
         var now = clock.elapsedTime;
+        var pX = player.px, pZ = player.pz; // Caché para evitar accesos repetidos
         for (var i = zombies.length - 1; i >= 0; i--) {
             var zb = zombies[i], ud = zb.ud, m = zb.mesh;
+
+            // Distancia al jugador para IA (usar distSq para rapidez)
+            var dx = pX - m.position.x, dz = pZ - m.position.z;
+            var distSq = dx * dx + dz * dz;
+            var dist = Math.sqrt(distSq);
 
             // ─ Spawn animation (emerge del suelo) ─
             if (ud.spawning) {
@@ -1691,12 +1702,8 @@
             if (!ud.alive) continue;
 
             // ─── MÁQUINA DE ESTADOS FINITA (FSM) ──────────────────────────────────
-            // Calcular distancia al jugador en plano XZ
-            var dx = player.px - m.position.x;
-            var dz = player.pz - m.position.z;
-            var dist = Math.sqrt(dx * dx + dz * dz);
-            var CHASE_DIST = 35;  // radio de detecci\u00f3n (antes 28, aumentado para que detecten antes)
-            var ATTACK_DIST = 1.5;
+            var CHASE_DIST = 35;  // radio de detección (antes 28)
+            var ATTACK_DIST = 1.6;
 
             if (dist <= ATTACK_DIST) {
                 // ─── ESTADO: ATACAR ─────────────────────────────────────
@@ -2158,6 +2165,27 @@
         domUnlock.textContent = txt; domUnlock.classList.remove('hidden');
     }
     function hideNotif() { domUnlock.classList.add('hidden'); }
+
+    // Pool de puntos flotantes para evitar recrear DOM
+    var _floatPool = [];
+    function showFloatingPts(pts, combo, pos) {
+        if (!domFloatingPoints) return;
+        var screenPos = pos.clone().project(camera);
+        var x = (screenPos.x * 0.5 + 0.5) * window.innerWidth;
+        var y = (screenPos.y * -0.5 + 0.5) * window.innerHeight;
+
+        var el = _floatPool.length > 0 ? _floatPool.pop() : document.createElement('div');
+        el.className = 'floating-pts' + (combo > 5 ? ' mega' : '');
+        el.innerHTML = '<span class="pts">+' + pts + '</span>' + (combo > 1 ? '<span class="combo">x' + combo + '</span>' : '');
+        el.style.left = x + 'px';
+        el.style.top = y + 'px';
+        domFloatingPoints.appendChild(el);
+
+        setTimeout(function () {
+            if (el.parentNode) domFloatingPoints.removeChild(el);
+            if (_floatPool.length < 20) _floatPool.push(el);
+        }, 1000);
+    }
 
     // ──────────────────────────────────────────────
     // LUCES DECORATIVAS
