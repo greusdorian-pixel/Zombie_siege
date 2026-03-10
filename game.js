@@ -18,9 +18,10 @@
     ];
 
     var ZTYPES = {
-        B: { hp: 50, spd: 2.0, dmg: 10, atkRate: 1.0, sc: 1.0, col: 0x4A7C4B, pts: 10, rr: 0.9 },
-        F: { hp: 30, spd: 4.5, dmg: 10, atkRate: 0.8, sc: 0.85, col: 0x2D5A2E, pts: 15, rr: 1.5 },
-        T: { hp: 200, spd: 1.2, dmg: 25, atkRate: 1.2, sc: 1.5, col: 0x6B3A3A, pts: 25, rr: 0.7 }
+        B: { hp: 60, spd: 2.2, dmg: 10, atkRate: 1.0, sc: 1.0, col: 0x3d7a3e, pts: 10, rr: 0.9 },
+        F: { hp: 35, spd: 5.0, dmg: 8, atkRate: 0.6, sc: 0.82, col: 0x2a4a2b, pts: 15, rr: 1.5 },
+        T: { hp: 220, spd: 1.3, dmg: 28, atkRate: 1.2, sc: 1.55, col: 0x6b3535, pts: 30, rr: 0.7 },
+        BOSS: { hp: 800, spd: 1.8, dmg: 40, atkRate: 0.8, sc: 2.2, col: 0x1a0a2e, pts: 200, rr: 0.5 }
     };
 
     var WAVES = [
@@ -516,7 +517,12 @@
 
     function trySwitch(idx) {
         if (idx === wIdx || reloading) return;
-        if (unlocked.indexOf(idx) < 0) { showNotif('🔒 Se desbloquea en Ronda ' + WDATA[idx].unlock); return; }
+        if (unlocked.indexOf(idx) < 0) {
+            // Mostrar notif y ocultarla automáticamente — NO bloquea el juego
+            showNotif('🔒 Se desbloquea en Ronda ' + WDATA[idx].unlock);
+            setTimeout(hideNotif, 2000);
+            return;
+        }
         wModels[wIdx].visible = false; wIdx = idx; wModels[idx].visible = true;
         ammo = WDATA[idx].mag; reloading = false; reloadT = 0;
         if (isAiming) { isAiming = false; camera.fov = 75; camera.updateProjectionMatrix(); wCamera.fov = 75; wCamera.updateProjectionMatrix(); domCross.className = ''; }
@@ -651,8 +657,36 @@
             wc: Math.random() * Math.PI * 2, atkT: 0,
             alive: true, dying: false, dyT: 0, spawning: true, spT: 0,
             aiState: 'WANDER', wanderAngle: null, wanderT: 0, wanderInterval: 3,
-            growlSound: null  // referencia al PositionalAudio (se asigna abajo)
+            growlSound: null,
+            // Propiedades exclusivas del BOSS
+            bossChargeT: 0,     // timer hasta próxima embestida
+            bossRageMode: false // modo RAGE al 25% HP
         };
+
+        // BOSS: modelo colosal diferenciado
+        if (tkey === 'BOSS') {
+            // Aura púrpura oscura (esfera semi-transparente)
+            var aura = new THREE.Mesh(
+                new THREE.SphereGeometry(0.7 * sc, 12, 12),
+                new THREE.MeshPhongMaterial({ color: 0x3d0066, transparent: true, opacity: 0.18, emissive: new THREE.Color(0x6600cc), emissiveIntensity: 0.8 }));
+            g.add(aura);
+            // Corona de huesos alrededor de la cabeza
+            for (var ci = 0; ci < 8; ci++) {
+                var cang = (ci / 8) * Math.PI * 2;
+                var spike = new THREE.Mesh(
+                    new THREE.ConeGeometry(0.05 * sc, 0.35 * sc, 5),
+                    new THREE.MeshPhongMaterial({ color: 0xc8b89a, emissive: new THREE.Color(0xffcc44), emissiveIntensity: 0.3 }));
+                spike.position.set(Math.cos(cang) * 0.28 * sc, 1.18 * sc, Math.sin(cang) * 0.28 * sc);
+                spike.rotation.z = Math.cos(cang) * 0.5;
+                spike.rotation.x = -Math.sin(cang) * 0.5;
+                g.add(spike);
+            }
+            // Ajustar brillo de ojos al BOSS (verde siniestro)
+            le.material = new THREE.MeshPhongMaterial({ color: 0x00ff44, emissive: new THREE.Color(0x00ff00), emissiveIntensity: 4.0, shininess: 100 });
+            re.material = le.material.clone();
+            lp.material = new THREE.MeshPhongMaterial({ color: 0x000000 });
+            rp.material = lp.material.clone();
+        }
 
         // ── AUDIO ESPACIAL: Asignar gruñido 3D al zombie ──────────────────────
         // Solo asignar si el Listener existe Y hay al menos un buffer listo
@@ -683,13 +717,21 @@
     }
 
     function spawnZombie(tkey) {
-        var ang = Math.random() * Math.PI * 2, dist = 40 + Math.random() * 20;
-        var sx = player.px + Math.cos(ang) * dist, sz = player.pz + Math.sin(ang) * dist;
+        // Spawn en radio 18-28 alrededor del jugador (antes era 40-60 = demasiado lejos)
+        var ang = Math.random() * Math.PI * 2;
+        var dist = tkey === 'BOSS' ? 20 : 18 + Math.random() * 10;
+        var sx = player.px + Math.cos(ang) * dist;
+        var sz = player.pz + Math.sin(ang) * dist;
         var m = makeZombie(tkey);
         m.position.set(sx, -2.5, sz);
         scene.add(m);
         zombies.push({ mesh: m, ud: m.userData });
         spawnDust(sx, 0, sz);
+        // Anuncio especial para el BOSS
+        if (tkey === 'BOSS') {
+            showNotif('\u2620\uFE0F ¡JEFE APARECE!');
+            setTimeout(hideNotif, 3000);
+        }
     }
 
     // ──────────────────────────────────────────────
@@ -1059,8 +1101,8 @@
             var dx = player.px - m.position.x;
             var dz = player.pz - m.position.z;
             var dist = Math.sqrt(dx * dx + dz * dz);
-            var CHASE_DIST = 28;  // radio a partir del cual persigue al jugador
-            var ATTACK_DIST = 1.5; // radio de ataque cuerpo a cuerpo
+            var CHASE_DIST = 35;  // radio de detecci\u00f3n (antes 28, aumentado para que detecten antes)
+            var ATTACK_DIST = 1.5;
 
             if (dist <= ATTACK_DIST) {
                 // ─── ESTADO: ATACAR ─────────────────────────────────────
@@ -1109,6 +1151,45 @@
 
                 ud.aiState = 'CHASE';
                 var spd = ud.cfg.spd;  // velocidad de persecución (cfg por tipo)
+
+                // ── PODERES DEL BOSS ────────────────────────────────────────────────────
+                if (ud.tkey === 'BOSS') {
+                    // RAGE MODE: se activa al 25% de HP → veloc. y daño x2
+                    var hpPct = ud.hp / ud.maxHp;
+                    if (!ud.bossRageMode && hpPct < 0.25) {
+                        ud.bossRageMode = true;
+                        ud.cfg = Object.assign({}, ud.cfg, { spd: ud.cfg.spd * 2, dmg: ud.cfg.dmg * 2 });
+                        showNotif('🔥 ¡JEFE EN MODO FURIA!');
+                        setTimeout(hideNotif, 3000);
+                    }
+                    spd = ud.cfg.spd;
+
+                    // EMBESTIDA: cada 8s lanza una carga a velocidad x3 durante 0.6s
+                    ud.bossChargeT -= dt;
+                    if (ud.bossChargeT <= 0 && dist > 3) {
+                        ud.bossChargeT = ud.bossRageMode ? 5 : 8;   // más frecuente en RAGE
+                        ud.bossCharging = 0.6;  // duración del dash
+                    }
+                    if (ud.bossCharging > 0) {
+                        ud.bossCharging -= dt;
+                        spd = ud.cfg.spd * 3;  // velocidad triple durante el dash
+                        // Si conecta con el jugador durante el dash → daño extra + shake
+                        if (dist < 2.5) {
+                            damagePlayer(ud.cfg.dmg * 0.5);
+                            doShake(0.5, 0.4);
+                            ud.bossCharging = 0;  // cancelar dash
+                        }
+                    }
+                    // Pulso visual: ojos parpadean entre verde y rojo en RAGE
+                    if (ud.bossRageMode) {
+                        var pulse = (Math.sin(now * 8) > 0) ? 0xff0000 : 0x00ff00;
+                        m.children.forEach(function (c) {
+                            if (c.material && c.material.emissiveIntensity > 1)
+                                c.material.emissive.setHex(pulse);
+                        });
+                    }
+                }
+                // ────────────────────────────────────────────────────────────────────────
 
                 // Zigzag exclusivo del tipo "F" (rápido) para dificultar el apuntado
                 if (ud.tkey === 'F') {
@@ -1258,6 +1339,8 @@
         for (var b = 0; b < wCfg.B; b++) spawnQueue.push('B');
         for (var f = 0; f < wCfg.F; f++) spawnQueue.push('F');
         for (var t = 0; t < wCfg.T; t++) spawnQueue.push('T');
+        // ─ BOSS: aparece en cada múltiplo de 5 (ronda 5, 10, 15…) ─
+        if (round % 5 === 0) { spawnQueue.push('BOSS'); }
         shuffle(spawnQueue);
 
         totalZ = spawnQueue.length; killedZ = 0; spawnTimer = 0;
@@ -1370,9 +1453,9 @@
         zombies.forEach(function (z) {
             if (!z.ud.alive || z.ud.spawning) return;
             var zx = size / 2 + z.mesh.position.x * scale, zz_ = size / 2 + z.mesh.position.z * scale;
-            var c = z.ud.tkey === 'T' ? '#ff8800' : z.ud.tkey === 'F' ? '#ffaa00' : '#ff3333';
+            var c = z.ud.tkey === 'BOSS' ? '#ffffff' : z.ud.tkey === 'T' ? '#ff8800' : z.ud.tkey === 'F' ? '#ffaa00' : '#ff3333';
             mmCtx.fillStyle = c;
-            mmCtx.beginPath(); mmCtx.arc(zx, zz_, z.ud.tkey === 'T' ? 5 : 3, 0, Math.PI * 2); mmCtx.fill();
+            mmCtx.beginPath(); mmCtx.arc(zx, zz_, z.ud.tkey === 'BOSS' ? 7 : z.ud.tkey === 'T' ? 5 : 3, 0, Math.PI * 2); mmCtx.fill();
         });
     }
 
