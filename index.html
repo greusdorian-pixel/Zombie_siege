@@ -53,6 +53,8 @@
             <h2 class="gameover-title">GAME OVER</h2>
             <div class="gameover-stats">
                 <div class="stat-row"><span>Ronda alcanzada</span><span id="go-round">—</span></div>
+                <div class="stat-row"><span>Ronda Máxima</span><span id="go-max-round" style="color:#ffcc00">—</span>
+                </div>
                 <div class="stat-row"><span>Zombies eliminados</span><span id="go-kills">—</span></div>
                 <div class="stat-row"><span>Puntuación</span><span id="go-score">—</span></div>
             </div>
@@ -65,6 +67,11 @@
      ============================================================ -->
     <div id="hud" class="hidden">
 
+        <!-- BARRA DE JEFE (OCULTA POR DEFECTO) -->
+        <div id="boss-health-bar" class="hidden">
+            <div class="boss-health-name">MUTANTE ALFA</div>
+            <div class="boss-health-fill" id="boss-hp-fill"></div>
+        </div>
         <!-- CROSSHAIR -->
         <div id="crosshair">
             <div class="ch-top"></div>
@@ -194,7 +201,7 @@
     <div id="damage-overlay"></div>
 
     <!-- VERSIÓN DEL JUEGO — esquina inferior derecha -->
-    <div id="game-version">v5.5</div>
+    <div id="game-version">v5.7</div>
 
     <!-- SCRIPTS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>

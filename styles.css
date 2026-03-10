@@ -849,3 +849,41 @@ body {
   color: #44ff88;
   font-family: 'Rajdhani', sans-serif;
 }
+
+/* ──────────────────────────────────────────────
+   BOSS HEALTH BAR
+   ────────────────────────────────────────────── */
+#boss-health-bar {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 50%;
+  height: 28px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid #8b0000;
+  border-radius: 4px;
+  z-index: 100;
+  text-align: center;
+  box-shadow: 0 0 10px #8b0000;
+  pointer-events: none;
+}
+
+.boss-health-name {
+  position: absolute;
+  width: 100%;
+  color: #fff;
+  font-weight: bold;
+  font-family: 'Orbitron', sans-serif;
+  line-height: 24px;
+  text-shadow: 1px 1px 2px #000;
+  z-index: 101;
+  letter-spacing: 2px;
+}
+
+.boss-health-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6b0000, #ff0000);
+  width: 100%;
+  transition: width 0.2s;
+}

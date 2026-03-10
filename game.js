@@ -129,6 +129,7 @@
     var domRoundTxt, domZombies, domScore, domKills;
     var domDamage, domCross, domNpcPrompt;
     var domStaminaFill, domStaminaLabel, domHeadshotNotif;
+    var domBossBar, domBossFill;
     var mmCtx;
 
     // Geom/mat compartidos
@@ -243,6 +244,8 @@
         domNpcPrompt = document.getElementById('npc-prompt');
         domStaminaFill = document.getElementById('hud-stamina-fill');
         domStaminaLabel = document.getElementById('hud-stamina-label');
+        domBossBar = document.getElementById('boss-health-bar');
+        domBossFill = document.getElementById('boss-hp-fill');
         domHeadshotNotif = document.getElementById('headshot-notif');
         var mm = document.getElementById('minimap-canvas');
         if (mm) mmCtx = mm.getContext('2d');
@@ -861,6 +864,19 @@
             rp.material = lp.material.clone();
         }
 
+        // MEGA JEFE (M): a lo Dark Souls
+        if (tkey === 'M') {
+            // Aura de sangre letal
+            var bloodAura = new THREE.Mesh(
+                new THREE.SphereGeometry(0.8 * sc, 16, 16),
+                new THREE.MeshPhongMaterial({ color: 0x8b0000, transparent: true, opacity: 0.25, emissive: new THREE.Color(0xff0000), emissiveIntensity: 0.5 }));
+            g.add(bloodAura);
+            // Brazos más grandes para la bestia
+            la.scale.set(1.5, 1.5, 1.5);
+            ra.scale.set(1.5, 1.5, 1.5);
+            g.userData.bossAoeT = 0; // timer de su ataque especial en área
+        }
+
         // ── AUDIO ESPACIAL: Asignar gruñido 3D al zombie ──────────────────────
         // Solo asignar si el Listener existe Y hay al menos un buffer listo
         if (audioListener && audioBuffersReady && zombieAudioBuffers.length > 0) {
@@ -890,18 +906,25 @@
     }
 
     function spawnZombie(tkey) {
-        // Mejorado: Spawn en un área aleatoria (de hasta 45 unidades de radio) NO centrada tan cerca
+        // Buscar un spawn válido
         var sx, sz, valid = false;
-        for (var i = 0; i < 20; i++) {
+        for (var i = 0; i < 30; i++) {
             var ang = Math.random() * Math.PI * 2;
             var dist = tkey === 'BOSS' ? 25 : 20 + Math.random() * 25;
             sx = player.px + Math.cos(ang) * dist;
             sz = player.pz + Math.sin(ang) * dist;
-            // No permitir span dentro de edificios y mantenerlos dentro de -45 a 45
-            if (sx > -45 && sx < 45 && sz > -45 && sz < 45 && canMove(sx, sz)) { valid = true; break; }
+
+            // Si cae muy lejos del mapa, lo traemos más al centro
+            sx = Math.max(-42, Math.min(42, sx));
+            sz = Math.max(-42, Math.min(42, sz));
+
+            if (canMove(sx, sz)) { valid = true; break; }
         }
-        // Si no pilló nada después de 20 intentos, se apoya lejos del centro
-        if (!valid) { sx = (Math.random() < 0.5 ? -40 : 40); sz = (Math.random() < 0.5 ? -40 : 40); }
+        // Fallback repartido aleatoriamente en área abierta si no halla hueco
+        if (!valid) {
+            sx = (Math.random() - 0.5) * 85;
+            sz = (Math.random() - 0.5) * 85;
+        }
 
         var m = makeZombie(tkey);
         m.position.set(sx, -2.5, sz);
@@ -1272,8 +1295,10 @@
 
             // ─ Spawn animation (emerge del suelo) ─
             if (ud.spawning) {
-                ud.spT += dt; m.position.y = -2.5 + ud.spT * 4;
-                if (m.position.y >= 0) { m.position.y = 0; ud.spawning = false; }
+                ud.spT += dt;
+                var targetY = 0.69 * ud.cfg.sc;
+                m.position.y = -2.5 + ud.spT * 6;
+                if (m.position.y >= targetY) { m.position.y = targetY; ud.spawning = false; }
                 continue;
             }
             // ─ Animación de muerte ─
@@ -1342,34 +1367,59 @@
                 ud.aiState = 'CHASE';
                 var spd = ud.cfg.spd;  // velocidad de persecución (cfg por tipo)
 
-                // ── PODERES DEL BOSS ────────────────────────────────────────────────────
-                if (ud.tkey === 'BOSS') {
-                    // RAGE MODE: se activa al 25% de HP → veloc. y daño x2
+                // ── PODERES DEL BOSS (BOSS o Mega Jefe M) ────────────────────────────────
+                if (ud.tkey === 'BOSS' || ud.tkey === 'M') {
+                    // RAGE MODE: se activa al 25% (BOSS) o 50% (M)
                     var hpPct = ud.hp / ud.maxHp;
-                    if (!ud.bossRageMode && hpPct < 0.25) {
+                    var rageThreshold = ud.tkey === 'M' ? 0.50 : 0.25;
+
+                    if (!ud.bossRageMode && hpPct < rageThreshold) {
                         ud.bossRageMode = true;
-                        ud.cfg = Object.assign({}, ud.cfg, { spd: ud.cfg.spd * 2, dmg: ud.cfg.dmg * 2 });
-                        showNotif('🔥 ¡JEFE EN MODO FURIA!');
-                        setTimeout(hideNotif, 3000);
+                        var speedMult = ud.tkey === 'M' ? 1.3 : 2;
+                        ud.cfg = Object.assign({}, ud.cfg, { spd: ud.cfg.spd * speedMult, dmg: ud.cfg.dmg * 2 });
+                        shopMsg('🔥 ¡' + (ud.tkey === 'M' ? 'MUTANTE' : 'JEFE') + ' EN FURIA!', false);
                     }
                     spd = ud.cfg.spd;
 
-                    // EMBESTIDA: cada 8s lanza una carga a velocidad x3 durante 0.6s
                     ud.bossChargeT -= dt;
-                    if (ud.bossChargeT <= 0 && dist > 3) {
-                        ud.bossChargeT = ud.bossRageMode ? 5 : 8;   // más frecuente en RAGE
-                        ud.bossCharging = 0.6;  // duración del dash
-                    }
+
                     if (ud.bossCharging > 0) {
+                        // Está en Embestida (Dash)
                         ud.bossCharging -= dt;
-                        spd = ud.cfg.spd * 3;  // velocidad triple durante el dash
-                        // Si conecta con el jugador durante el dash → daño extra + shake
-                        if (dist < 2.5) {
-                            damagePlayer(ud.cfg.dmg * 0.5);
-                            doShake(0.5, 0.4);
+                        spd = ud.cfg.spd * (ud.tkey === 'M' ? 4 : 3);  // M dashea más rápido
+                        // Si conecta con el jugador
+                        if (dist < (ud.tkey === 'M' ? 3.5 : 2.5)) {
+                            damagePlayer(ud.cfg.dmg * (ud.tkey === 'M' ? 0.8 : 0.5));
+                            doShake(ud.tkey === 'M' ? 0.8 : 0.5, 0.4);
                             ud.bossCharging = 0;  // cancelar dash
                         }
+                    } else if (ud.tkey === 'M' && ud.bossAoeT > 0) {
+                        // Mega Jefe haciendo Salto Sísmico (cargar)
+                        ud.bossAoeT -= dt;
+                        spd = 0; // se detiene
+                        if (ud.bossAoeT <= 0) {
+                            // Hit del AoE
+                            if (dist < 5.0) {
+                                damagePlayer(ud.cfg.dmg);
+                                doShake(1.2, 0.7);
+                                shopMsg('💥 ¡SALTO SÍSMICO!', false);
+                            }
+                        }
+                    } else {
+                        // Decide next move
+                        if (ud.bossChargeT <= 0) {
+                            if (dist > 10) {
+                                // Dash si está lejos
+                                ud.bossChargeT = ud.bossRageMode ? 4 : (ud.tkey === 'M' ? 6 : 8);
+                                ud.bossCharging = ud.tkey === 'M' ? 0.8 : 0.6;
+                            } else if (ud.tkey === 'M' && dist <= 3.0 && Math.random() < 0.2) {
+                                // AoE si está cerca (sólo Mega Jefe M)
+                                ud.bossAoeT = 1.0; // tiempo cargando el salto
+                                ud.bossChargeT = 3; // pone dash en cooldown también
+                            }
+                        }
                     }
+
                     // Pulso visual: ojos parpadean entre verde y rojo en RAGE
                     if (ud.bossRageMode) {
                         var pulse = (Math.sin(now * 8) > 0) ? 0xff0000 : 0x00ff00;
@@ -1458,8 +1508,22 @@
                 m.children.forEach(function (c) { if (c.material && c.material.emissive) c.material.emissive.setHex(0x000000); });
             }
 
-            // Fijar el zombie en el suelo (sin físicas de caida por ahora)
-            m.position.y = 0;
+            // Fix: set on the ground
+            m.position.y = 0.69 * ud.cfg.sc;
+        }
+
+        // ── ACTUALIZAR BARRA DEL BOSS ──────────────────────────────────────────────
+        var bossTarget = null;
+        for (var b = 0; b < zombies.length; b++) {
+            if (zombies[b].ud.tkey === 'M') { bossTarget = zombies[b].ud; break; }
+        }
+        if (domBossBar) {
+            if (bossTarget) {
+                domBossBar.classList.remove('hidden');
+                if (domBossFill) domBossFill.style.width = (Math.max(0, bossTarget.hp) / bossTarget.maxHp * 100) + '%';
+            } else {
+                domBossBar.classList.add('hidden');
+            }
         }
     }
 
@@ -1532,8 +1596,9 @@
         for (var b = 0; b < wCfg.B; b++) spawnQueue.push('B');
         for (var f = 0; f < wCfg.F; f++) spawnQueue.push('F');
         for (var t = 0; t < wCfg.T; t++) spawnQueue.push('T');
-        // ─ BOSS: aparece en cada múltiplo de 5 (ronda 5, 10, 15…) ─
-        if (round % 5 === 0) { spawnQueue.push('BOSS'); }
+        // ─ BOSS: Múltiplos de 5, MEGA BOSS (M) en múltiplos de 10 ─
+        if (round % 10 === 0) { spawnQueue.push('M'); }
+        else if (round % 5 === 0) { spawnQueue.push('BOSS'); }
         shuffle(spawnQueue);
 
         totalZ = spawnQueue.length; killedZ = 0; spawnTimer = 0;
@@ -1603,6 +1668,15 @@
         if (state === GS.GAMEOVER) return;
         state = GS.GAMEOVER;
         playGameOver();
+
+        // GUARDAR RÉCORD LOCAL
+        var maxRound = localStorage.getItem('zs_max_round') || 1;
+        if (round > maxRound) {
+            maxRound = round;
+            localStorage.setItem('zs_max_round', maxRound);
+        }
+        document.getElementById('go-max-round').textContent = maxRound;
+
         domHud.classList.add('hidden');
         domRound.classList.add('hidden');
         document.getElementById('go-round').textContent = round;
