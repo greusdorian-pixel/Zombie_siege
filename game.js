@@ -1546,29 +1546,49 @@
         updateStaminaHUD();
 
         // ─── 5. MOVIMIENTO WASD + COLISIONES AABB ──────────────────────────────
-        var speedMod = skillSpeed ? 1.3 : 1.0;
-        var spd = ((canSprint && isMoving) ? 14 : 9.5) * speedMod; // Velocidad base y corriendo
+        var speedMod = (skillSpeed ? 1.3 : 1.0);
+        var sprintSpd = (canSprint && isMoving) ? 14 : 9.5;
+        var spd = sprintSpd * speedMod;
 
-        var strafeMod = (keys['KeyA'] || keys['KeyD']) ? 1.25 : 1.0; // 25% más rápido lateral
+        var strafeMod = (keys['KeyA'] || keys['KeyD'] || keys['ArrowLeft'] || keys['ArrowRight']) ? 1.15 : 1.0;
         var finalSpd = spd * strafeMod;
 
-        var mov = new THREE.Vector3();
-        if (keys['KeyW'] || keys['ArrowUp']) mov.addScaledVector(fwd, finalSpd);
-        if (keys['KeyS'] || keys['ArrowDown']) mov.addScaledVector(fwd, -finalSpd);
-        if (keys['KeyA'] || keys['ArrowLeft']) mov.addScaledVector(right, -finalSpd);
-        if (keys['KeyD'] || keys['ArrowRight']) mov.addScaledVector(right, finalSpd);
+        // Direcciones relativas a la cámara proyectadas en el suelo (XZ)
+        // Usar variables locales para asegurar que no hay interferencia con el ámbito global
+        var camDirFwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+        camDirFwd.y = 0; camDirFwd.normalize();
+        var camDirRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+        camDirRight.y = 0; camDirRight.normalize();
 
-        // Probar movimiento completo; si choca, intentar ejes por separado (slide)
-        var nx = player.px + mov.x * dt;
-        var nz = player.pz + mov.z * dt;
+        var moveVec = new THREE.Vector3(0, 0, 0);
+        if (keys['KeyW'] || keys['ArrowUp']) moveVec.add(camDirFwd);
+        if (keys['KeyS'] || keys['ArrowDown']) moveVec.sub(camDirFwd);
+        if (keys['KeyA'] || keys['ArrowLeft']) moveVec.sub(camDirRight);
+        if (keys['KeyD'] || keys['ArrowRight']) moveVec.add(camDirRight);
 
-        var m_res = canMove(nx, nz);
-        if (m_res.can) { player.px = nx; player.pz = nz; }
-        else if (canMove(nx, player.pz).can) { player.px = nx; }               // deslizar en X
-        else if (canMove(player.px, nz).can) { player.pz = nz; }               // deslizar en Z
+        if (moveVec.lengthSq() > 0) {
+            moveVec.normalize();
+            var nx = player.px + moveVec.x * finalSpd * dt;
+            var nz = player.pz + moveVec.z * finalSpd * dt;
+
+            // Probar movimiento completo; si choca, intentar ejes por separado (deslizar)
+            var resAll = canMove(nx, nz);
+            if (resAll.can) {
+                player.px = nx; player.pz = nz;
+            } else {
+                var resX = canMove(nx, player.pz);
+                if (resX.can) {
+                    player.px = nx;
+                } else {
+                    var resZ = canMove(player.px, nz);
+                    if (resZ.can) player.pz = nz;
+                }
+            }
+        }
 
         // Detección de altura del suelo dinámica (para subir a cosas)
-        var floorY = m_res.groundY;
+        var current_res = canMove(player.px, player.pz);
+        var floorY = current_res.groundY;
         if (player_py < floorY) {
             player_py = floorY;
             player_vy = 0;
@@ -2252,6 +2272,8 @@
         if (state === GS.COUNTDOWN) { updateCountdown(dt); renderFrames(dt, t); return; }
         if (state === GS.PLAYING || state === GS.ROUND_COMPLETE) {
             updatePlayer(dt);
+            // Seguridad: prevenir pérdida de coordenadas
+            if (isNaN(player.px) || isNaN(player.pz)) { player.px = 0; player.pz = 0; }
             updateSky(dt);
             updateZombies(dt);
             updateParticles(dt);
