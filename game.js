@@ -61,7 +61,7 @@
 
     // ── GRAVEDAD Y SALTO ─────────────────────────
     var GRAVITY = 18;            // aceleración gravitacional (parkour flotante)
-    var JUMP_FORCE = 12.5;          // impulso vertical al saltar brutal (movilidad extra)
+    var JUMP_FORCE = 10.8;          // Equilibrado: antes era 12.5 (muy exagerado)
     var player_py = 1.7;           // posición Y actual del jugador (altura de ojos)
     var player_vy = 0;             // velocidad vertical
     var isGrounded = true;          // está en el suelo?
@@ -627,7 +627,7 @@
             roof.position.set(x, h + 0.2, z); scene.add(roof);
 
             addWindows(x, z, w, h, d);
-            mapBounds.push({ minX: x - w / 2 - MARGIN, maxX: x + w / 2 + MARGIN, minZ: z - d / 2 - MARGIN, maxZ: z + d / 2 + MARGIN });
+            mapBounds.push({ minX: x - w / 2 - MARGIN, maxX: x + w / 2 + MARGIN, minZ: z - d / 2 - MARGIN, maxZ: z + d / 2 + MARGIN, maxY: h });
         });
 
         // MUROS DE CONTENCIÓN (Limitan la zona principal a ~56 unidades)
@@ -638,7 +638,7 @@
         walls.forEach(function (w) {
             var wm = new THREE.Mesh(new THREE.BoxGeometry(w[2], w[3], w[4]), wallMat);
             wm.position.set(w[0], w[3] / 2, w[1]); wm.castShadow = true; wm.receiveShadow = true; scene.add(wm);
-            mapBounds.push({ minX: w[0] - w[2] / 2 - MARGIN, maxX: w[0] + w[2] / 2 + MARGIN, minZ: w[1] - w[4] / 2 - MARGIN, maxZ: w[1] + w[4] / 2 + MARGIN });
+            mapBounds.push({ minX: w[0] - w[2] / 2 - MARGIN, maxX: w[0] + w[2] / 2 + MARGIN, minZ: w[1] - w[4] / 2 - MARGIN, maxZ: w[1] + w[4] / 2 + MARGIN, maxY: w[3] });
         });
 
         // PROPS y OBSTÁCULOS
@@ -652,7 +652,7 @@
         propPos.forEach(function (p) {
             var bar = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.9, 8), new THREE.MeshPhongMaterial({ color: 0x4a2e16 }));
             bar.position.set(p[0], 0.45, p[1]); bar.castShadow = true; scene.add(bar);
-            mapBounds.push({ minX: p[0] - 0.7, maxX: p[0] + 0.7, minZ: p[1] - 0.7, maxZ: p[1] + 0.7 });
+            mapBounds.push({ minX: p[0] - 0.7, maxX: p[0] + 0.7, minZ: p[1] - 0.7, maxZ: p[1] + 0.7, maxY: 0.9 });
             if (Math.random() < 0.6) addFire(p[0], 1.0, p[1]);
         });
 
@@ -681,7 +681,7 @@
         scene.add(cont);
 
         var rad = Math.sqrt((w / 2) * (w / 2) + (d / 2) * (d / 2)) - 0.2; // aproximación de hitbox
-        mapBounds.push({ minX: x - rad, maxX: x + rad, minZ: z - rad, maxZ: z + rad });
+        mapBounds.push({ minX: x - rad, maxX: x + rad, minZ: z - rad, maxZ: z + rad, maxY: h });
     }
 
     function addDeadTree(x, z) {
@@ -1178,7 +1178,7 @@
             sx = Math.max(-42, Math.min(42, sx));
             sz = Math.max(-42, Math.min(42, sz));
 
-            if (canMove(sx, sz)) { valid = true; break; }
+            if (canMove(sx, sz).can) { valid = true; break; }
         }
         // Fallback repartido aleatoriamente en área abierta si no halla hueco
         if (!valid) {
@@ -1295,11 +1295,19 @@
     // ──────────────────────────────────────────────
     // ── Función de colisión AABB ──────────────────
     function canMove(nx, nz) {
+        var groundY = EYE_HEIGHT;
         for (var i = 0; i < mapBounds.length; i++) {
             var b = mapBounds[i];
-            if (nx > b.minX && nx < b.maxX && nz > b.minZ && nz < b.maxZ) return false;
+            if (nx > b.minX && nx < b.maxX && nz > b.minZ && nz < b.maxZ) {
+                // Si el jugador está suficientemente alto (parkour), puede estar sobre el objeto
+                if (player_py >= b.maxY + EYE_HEIGHT - 0.3) {
+                    groundY = Math.max(groundY, b.maxY + EYE_HEIGHT);
+                    continue;
+                }
+                return { can: false, groundY: groundY };
+            }
         }
-        return true;
+        return { can: true, groundY: groundY };
     }
 
     function tryFire() {
@@ -1531,21 +1539,33 @@
         // ─── 5. MOVIMIENTO WASD + COLISIONES AABB ──────────────────────────────
         var speedMod = skillSpeed ? 1.3 : 1.0;
         var spd = ((canSprint && isMoving) ? 14 : 9.5) * speedMod; // Velocidad base y corriendo
-        // Calcular vectores de dirección relativos al yaw del jugador (no al pitch)
-        var fwd = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(0, player.yaw, 0));
-        var right = new THREE.Vector3(1, 0, 0).applyEuler(new THREE.Euler(0, player.yaw, 0));
+
+        var strafeMod = (keys['KeyA'] || keys['KeyD']) ? 1.25 : 1.0; // 25% más rápido lateral
+        var finalSpd = spd * strafeMod;
+
         var mov = new THREE.Vector3();
-        if (keys['KeyW'] || keys['ArrowUp']) mov.addScaledVector(fwd, spd);
-        if (keys['KeyS'] || keys['ArrowDown']) mov.addScaledVector(fwd, -spd);
-        if (keys['KeyA'] || keys['ArrowLeft']) mov.addScaledVector(right, -spd);
-        if (keys['KeyD'] || keys['ArrowRight']) mov.addScaledVector(right, spd);
+        if (keys['KeyW'] || keys['ArrowUp']) mov.addScaledVector(fwd, finalSpd);
+        if (keys['KeyS'] || keys['ArrowDown']) mov.addScaledVector(fwd, -finalSpd);
+        if (keys['KeyA'] || keys['ArrowLeft']) mov.addScaledVector(right, -finalSpd);
+        if (keys['KeyD'] || keys['ArrowRight']) mov.addScaledVector(right, finalSpd);
 
         // Probar movimiento completo; si choca, intentar ejes por separado (slide)
         var nx = player.px + mov.x * dt;
         var nz = player.pz + mov.z * dt;
-        if (canMove(nx, nz)) { player.px = nx; player.pz = nz; }
-        else if (canMove(nx, player.pz)) { player.px = nx; }               // deslizar en X
-        else if (canMove(player.px, nz)) { player.pz = nz; }               // deslizar en Z
+
+        var m_res = canMove(nx, nz);
+        if (m_res.can) { player.px = nx; player.pz = nz; }
+        else if (canMove(nx, player.pz).can) { player.px = nx; }               // deslizar en X
+        else if (canMove(player.px, nz).can) { player.pz = nz; }               // deslizar en Z
+
+        // Detección de altura del suelo dinámica (para subir a cosas)
+        var floorY = m_res.groundY;
+        if (player_py < floorY) {
+            player_py = floorY;
+            player_vy = 0;
+            isGrounded = true;
+            player.jumps = 0;
+        }
 
         // Mantener dentro de los límites del mapa
         player.px = Math.max(-90, Math.min(90, player.px));
@@ -1812,10 +1832,21 @@
                 var nx = m.position.x + (dx / dist) * spd * dt;
                 var nz = m.position.z + (dz / dist) * spd * dt;
 
-                // El zombie también respeta las colisiones AABB de edificios
-                if (canMove(nx, nz)) { m.position.x = nx; m.position.z = nz; }
-                else if (canMove(nx, m.position.z)) { m.position.x = nx; }  // deslizar
-                else if (canMove(m.position.x, nz)) { m.position.z = nz; }  // deslizar
+                // Hitbox zombie con altura dinámica
+                var zRes = canMove(nx, nz);
+                if (zRes.can) { m.position.x = nx; m.position.z = nz; }
+                else if (canMove(nx, m.position.z).can) { m.position.x = nx; }
+                else if (canMove(m.position.x, nz).can) { m.position.z = nz; }
+
+                // Salto zombie equilibrado
+                var baseY = zRes.groundY - 1.7;
+                if (ud.tkey === 'F' && ud.aiState === 'CHASE') {
+                    var leap = Math.abs(Math.sin(now * 8 + zb.mesh.id)) * 1.5;
+                    m.position.y = baseY + 0.8 + leap;
+                } else {
+                    var obstacleJump = !zRes.can ? 1.0 : 0;
+                    m.position.y = baseY + 0.8 + obstacleJump;
+                }
 
                 // Rotar el zombie hacia el jugador con Math.atan2
                 m.rotation.y = Math.atan2(dx, dz);
@@ -1841,7 +1872,7 @@
                 var wz = Math.cos(ud.wanderAngle) * wanderSpd * dt;
 
                 // Si choca al deambular → cambiar dirección inmediatamente
-                if (canMove(m.position.x + wx, m.position.z + wz)) {
+                if (canMove(m.position.x + wx, m.position.z + wz).can) {
                     m.position.x += wx;
                     m.position.z += wz;
                 } else {
@@ -2072,8 +2103,11 @@
     // ──────────────────────────────────────────────
     // HUD UPDATE
     // ──────────────────────────────────────────────
+    var _lastHUDHP = -1;
     function updateHUD() {
         if (!domHealthFill) return;
+        if (player.hp === _lastHUDHP) return; // Optimización visual
+        _lastHUDHP = player.hp;
         var pct = player.hp / player.maxHp;
         domHealthFill.style.width = (pct * 100) + '%';
         var col = pct > 0.5 ? 'linear-gradient(90deg,#22cc44,#44ff66)' : pct > 0.25 ? 'linear-gradient(90deg,#ffaa00,#ffcc44)' : 'linear-gradient(90deg,#cc2222,#ff4444)';
@@ -2139,7 +2173,8 @@
     // ──────────────────────────────────────────────
     function animate() {
         requestAnimationFrame(animate);
-        var dt = Math.min(clock.getDelta(), 0.05);
+        var dt = clock.getDelta();
+        if (dt > 0.05) dt = 0.05; // Cap FPS dt para estabilidad
         var t = clock.elapsedTime;
 
         if (state === GS.COUNTDOWN) { updateCountdown(dt); renderFrames(dt, t); return; }
@@ -2148,14 +2183,14 @@
             updateSky(dt);
             updateZombies(dt);
             updateParticles(dt);
-            if (state === GS.PLAYING) updateSpawn(dt);  // solo spawnear si estamos jugando
+            if (state === GS.PLAYING) updateSpawn(dt);
             updateReloadBar(dt);
             updateFires(t);
-            updateMinimap();
+            // Optimización: Minimapa a 15fps
+            if (Math.floor(t * 15) !== Math.floor((t - dt) * 15)) updateMinimap();
             // Auto-fire
             if (mb[0]) { tryFire(); }
             if (!mb[0]) fireLock = false;
-            updateHUD();
         }
         renderFrames(dt, t);
     }
