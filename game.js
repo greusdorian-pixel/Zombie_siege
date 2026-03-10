@@ -114,6 +114,7 @@
     // ── AUDIO ESPACIAL 3D ──────────────────────────
     var audioListener = null;       // THREE.AudioListener adjunto a la cámara
     var zombieAudioBuffers = [];    // Buffers pre-cargados [zombie1, zombie2, zombie3]
+    var bossAudioBuffers = [];      // Boss audio buffers
     var audioBuffersReady = false;  // Flag: buffers listos para usar
 
     // ── NPC / TIENDA ────────────────────────────────────────────────────────────
@@ -217,6 +218,15 @@
                 }
             );
         });
+
+        // Audio para el jefe
+        var bossSoundFiles = ['sound/grito, jefe.ogg', 'sound/palabras jefe.ogg'];
+        bossSoundFiles.forEach(function (path, idx) {
+            audioLoader.load(path, function (buffer) {
+                bossAudioBuffers[idx] = buffer;
+            });
+        });
+
         // ─────────────────────────────────────────────────────────────────────────
 
         domMenu.classList.remove('hidden');
@@ -595,54 +605,74 @@
 
     function makePistol() {
         var g = new THREE.Group();
-        var slide = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.18), matM(0x888888, 60));
-        slide.position.set(0, 0.02, -0.04); g.add(slide);
-        var hdl = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.12, 0.05), matM(0x333333, 10));
-        hdl.position.set(0, -0.06, 0.04); g.add(hdl);
-        var brl = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.06, 6), matM(0x666666, 60));
-        brl.rotation.x = Math.PI / 2; brl.position.set(0, 0.02, -0.14); g.add(brl);
-        g.userData.mz = new THREE.Vector3(0, 0.02, -0.18);
+        var slide = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.05, 0.2), matM(0xa0a0a0, 80));
+        slide.position.set(0, 0.02, -0.05); g.add(slide);
+        var sight = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.01, 0.01), matM(0xff3333, 10)); // mira roja
+        sight.position.set(0, 0.05, -0.14); g.add(sight);
+        var hdl = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.12, 0.05), matM(0x222222, 10));
+        hdl.position.set(0, -0.06, 0.04); hdl.rotation.x = -0.1; g.add(hdl);
+        var brl = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.08, 6), matM(0x444444, 60));
+        brl.rotation.x = Math.PI / 2; brl.position.set(0, 0.02, -0.16); g.add(brl);
+        g.userData.mz = new THREE.Vector3(0, 0.02, -0.2);
         return g;
     }
     function makeShotgun() {
         var g = new THREE.Group();
-        var rcv = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 0.14), matM(0x888888, 50));
+        var rcv = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.07, 0.16), matM(0x666666, 50));
         rcv.position.set(0, 0, 0); g.add(rcv);
-        var stk = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.05, 0.2), matM(0x6B3A1F, 15));
-        stk.position.set(0, 0, 0.16); g.add(stk);
-        var brl = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.3, 8), matM(0x777777, 60));
-        brl.rotation.x = Math.PI / 2; brl.position.set(0, 0.01, -0.22); g.add(brl);
-        var pmp = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.04, 0.07), matM(0x5a3015, 15));
-        pmp.position.set(0, -0.01, -0.08); g.add(pmp);
-        var hdl = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.1, 0.05), matM(0x6B3A1F, 10));
-        hdl.position.set(0, -0.08, 0.04); g.add(hdl);
-        g.userData.mz = new THREE.Vector3(0, 0.01, -0.38);
+        var stk = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.08, 0.25), matM(0x5a3015, 15)); // culata más grande
+        stk.position.set(0, -0.02, 0.2); stk.rotation.x = -0.1; g.add(stk);
+        var brl = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.4, 8), matM(0x444444, 70)); // cañon largo
+        brl.rotation.x = Math.PI / 2; brl.position.set(0, 0.01, -0.28); g.add(brl);
+        var tube = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.35, 8), matM(0x333333, 50)); // tubo de almacén
+        tube.rotation.x = Math.PI / 2; tube.position.set(0, -0.03, -0.25); g.add(tube);
+        var pmp = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 0.12), matM(0x4a2005, 15));
+        pmp.position.set(0, -0.03, -0.12); g.add(pmp);
+        var hdl = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.1, 0.05), matM(0x5a3015, 10));
+        hdl.position.set(0, -0.08, 0.04); hdl.rotation.x = -0.2; g.add(hdl);
+        g.userData.mz = new THREE.Vector3(0, 0.01, -0.48);
         return g;
     }
     function makeSMG() {
         var g = new THREE.Group();
-        var body = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.065, 0.24), matM(0x444444, 35));
+        var body = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.07, 0.26), matM(0x333333, 40));
         body.position.set(0, 0, -0.02); g.add(body);
-        var brl = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, 0.2, 6), matM(0x555555, 55));
+        var stk = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.2, 4), matM(0x555555, 60)); // culata plegable
+        stk.rotation.x = Math.PI / 2; stk.position.set(0.03, 0, 0.2); g.add(stk);
+        var scope = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.06, 8), matM(0x111111, 80)); // mira holografica
+        scope.rotation.x = Math.PI / 2; scope.position.set(0, 0.05, -0.05); g.add(scope);
+        var sight = new THREE.Mesh(new THREE.PlaneGeometry(0.03, 0.03), new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.8 }));
+        sight.position.set(0, 0.05, -0.08); g.add(sight);
+        var brl = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.15, 8), matM(0x222222, 60)); // silenciador
         brl.rotation.x = Math.PI / 2; brl.position.set(0, 0, -0.22); g.add(brl);
-        var mag = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.14, 0.04), matM(0x333333, 20));
-        mag.position.set(0, -0.1, -0.01); g.add(mag);
-        var hdl = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.09, 0.04), matM(0x444444, 25));
-        hdl.position.set(0, -0.07, 0.09); g.add(hdl);
-        g.userData.mz = new THREE.Vector3(0, 0, -0.34);
+        var mag = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.18, 0.04), matM(0x222222, 20)); // cargador curvo
+        mag.position.set(0, -0.12, -0.01); mag.rotation.x = 0.1; g.add(mag);
+        var hdl = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.1, 0.045), matM(0x333333, 25));
+        hdl.position.set(0, -0.08, 0.09); hdl.rotation.x = -0.1; g.add(hdl);
+        g.userData.mz = new THREE.Vector3(0, 0, -0.3);
         return g;
     }
     function makeSniper() {
         var g = new THREE.Group();
-        var body = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.055, 0.18), matM(0x2d4a1f, 15));
+        var body = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.06, 0.25), matM(0x1a2e12, 15));
         body.position.set(0, 0, 0); g.add(body);
-        var stk = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.04, 0.24), matM(0x3a5a25, 12));
-        stk.position.set(0, 0, 0.2); g.add(stk);
-        var brl = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.4, 8), matM(0x666666, 65));
-        brl.rotation.x = Math.PI / 2; brl.position.set(0, 0, -0.3); g.add(brl);
-        var scp = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.12, 7), matM(0x555555, 60));
-        scp.rotation.x = Math.PI / 2; scp.position.set(0, 0.052, -0.02); g.add(scp);
-        g.userData.mz = new THREE.Vector3(0, 0, -0.52);
+        var stk = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.06, 0.22), matM(0x2a401c, 12));
+        stk.position.set(0, -0.01, 0.23); g.add(stk);
+        var pad = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.08, 0.02), matM(0x111111, 5)); // cantonera
+        pad.position.set(0, -0.01, 0.34); g.add(pad);
+        var brl = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.015, 0.55, 8), matM(0x555555, 80)); // cañon larguisimo
+        brl.rotation.x = Math.PI / 2; brl.position.set(0, 0.01, -0.38); g.add(brl);
+        var bipod1 = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.1), matM(0x333333, 50));
+        bipod1.position.set(0.05, -0.05, -0.4); bipod1.rotation.z = -0.5; g.add(bipod1);
+        var bipod2 = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.1), matM(0x333333, 50));
+        bipod2.position.set(-0.05, -0.05, -0.4); bipod2.rotation.z = 0.5; g.add(bipod2);
+        var scp = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.2, 8), matM(0x222222, 70)); // mira enorme
+        scp.rotation.x = Math.PI / 2; scp.position.set(0, 0.06, -0.02); g.add(scp);
+        var lens = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.01, 8), new THREE.MeshPhongMaterial({ color: 0x00aaff, shininess: 100 }));
+        lens.rotation.x = Math.PI / 2; lens.position.set(0, 0.06, -0.12); g.add(lens);
+        var hdl = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.09, 0.05), matM(0x2a401c, 12));
+        hdl.position.set(0, -0.07, 0.08); hdl.rotation.x = -0.2; g.add(hdl);
+        g.userData.mz = new THREE.Vector3(0, 0.01, -0.66);
         return g;
     }
 
@@ -1345,14 +1375,19 @@
                 // Si el zombie no tiene growlSound (buffers no estaban listos al spawn),
                 // intentar asignarlo ahora que los buffers pueden ya estar cargados
                 if (!ud.growlSound && audioBuffersReady && audioListener) {
-                    var vBufs = zombieAudioBuffers.filter(function (b) { return !!b; });
-                    if (vBufs.length > 0) {
+                    var isBoss = (ud.tkey === 'BOSS' || ud.tkey === 'M');
+                    var srcBuffers = isBoss ? bossAudioBuffers.filter(function (b) { return !!b; }) : zombieAudioBuffers.filter(function (b) { return !!b; });
+
+                    // Si no cargó el bossAudioBuffers de este en particular, usar el default para que no sea mudo
+                    if (srcBuffers.length === 0) srcBuffers = zombieAudioBuffers.filter(function (b) { return !!b; });
+
+                    if (srcBuffers.length > 0) {
                         var g2 = new THREE.PositionalAudio(audioListener);
-                        g2.setBuffer(vBufs[Math.floor(Math.random() * vBufs.length)]);
-                        g2.setRefDistance(5);
-                        g2.setMaxDistance(40);
-                        g2.setRolloffFactor(2);
-                        g2.setVolume(3.0);   // volumen al 300%
+                        g2.setBuffer(srcBuffers[Math.floor(Math.random() * srcBuffers.length)]);
+                        g2.setRefDistance(isBoss ? 20 : 5);
+                        g2.setMaxDistance(isBoss ? 150 : 40); // El jefe se escucha a gran distancia
+                        g2.setRolloffFactor(isBoss ? 1 : 2);
+                        g2.setVolume(isBoss ? 10.0 : 3.0);   // Máximo ruido perturbador para jefe
                         g2.setLoop(false);
                         m.add(g2);
                         ud.growlSound = g2;
@@ -1663,8 +1698,8 @@
             if (!shopNpc) { shopNpc = makeShopNpc(); scene.add(shopNpc); }
             else shopNpc.visible = true;
             npcVisible = true;
-            shopMsg('🛒 ¡Tienda disponible por 30s!', true);
-            setTimeout(function () { nextRound(); }, 30000); // 30 segundos
+            shopMsg('🛒 ¡Tienda disponible por 60s!', true);
+            setTimeout(function () { nextRound(); }, 60000); // 60 segundos
         } else {
             setTimeout(function () { nextRound(); }, 4000);  // 4 segundos normal
         }
