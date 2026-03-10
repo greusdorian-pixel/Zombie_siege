@@ -20,6 +20,18 @@ body {
   -webkit-user-select: none;
 }
 
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%),
+    linear-gradient(90deg, rgba(255, 0, 0, 0.05), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.05));
+  background-size: 100% 4px, 3px 100%;
+  pointer-events: none;
+  z-index: 1000;
+  opacity: 0.3;
+}
+
 #gameCanvas {
   display: block;
   width: 100vw;
@@ -51,44 +63,86 @@ body {
   display: none !important;
 }
 
-/* MENU */
 .menu-content {
   text-align: center;
-  animation: fadeUp 0.6s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  max-width: 900px;
+  width: 90%;
+}
+
+.menu-content>* {
+  animation: menuIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+
+.menu-content h1 {
+  animation-delay: 0.1s;
+}
+
+.menu-content p {
+  animation-delay: 0.2s;
+}
+
+.menu-content .menu-controls {
+  animation-delay: 0.3s;
+}
+
+.menu-content .menu-updates {
+  animation-delay: 0.4s;
+}
+
+.menu-content .btn-primary {
+  animation-delay: 0.6s;
 }
 
 .game-title {
   font-family: 'Orbitron', sans-serif;
-  font-size: clamp(3rem, 8vw, 6rem);
+  font-size: clamp(3.5rem, 10vw, 7.5rem);
   font-weight: 900;
   color: #fff;
-  text-shadow: 0 0 40px #cc0000, 0 0 80px #880000;
-  letter-spacing: 0.05em;
-  line-height: 1;
+  text-shadow: 0 0 30px rgba(204, 0, 0, 0.6);
+  letter-spacing: 0.1em;
+  margin: 0;
+  line-height: 0.9;
+  text-transform: uppercase;
+  animation: titleGlow 4s ease-in-out infinite alternate;
 }
 
 .game-title span {
-  color: #cc2222;
+  color: #ff2222;
+  text-decoration: underline rgba(255, 0, 0, 0.3) 10px;
 }
 
 .menu-subtitle {
-  font-size: 1.3rem;
-  color: #aaa;
-  margin: 0.6rem 0 2rem;
-  letter-spacing: 0.15em;
+  font-size: 1.1rem;
+  color: #ffaa99;
+  margin: -10px 0 10px;
+  letter-spacing: 0.4em;
   text-transform: uppercase;
+  font-weight: 600;
+  opacity: 0.8;
 }
 
 .menu-controls {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 2.5rem;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.8rem 2.5rem;
+  margin: 0;
   text-align: left;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  padding: 1.2rem 2rem;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1.5rem 2.5rem;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  transition: border-color 0.3s;
+}
+
+.menu-controls:hover {
+  border-color: rgba(255, 34, 34, 0.4);
 }
 
 .control-row {
@@ -101,29 +155,34 @@ body {
 
 .key {
   display: inline-block;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 5px;
-  padding: 2px 8px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: #fff;
-  min-width: 90px;
+  background: rgba(255, 10, 10, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  font-weight: 900;
+  color: #ffaa00;
+  min-width: 80px;
   text-align: center;
-  letter-spacing: 0.05em;
+  box-shadow: 0 0 10px rgba(255, 0, 0, 0.1);
 }
 
 .menu-updates {
-  margin-top: -1rem;
-  margin-bottom: 2rem;
-  background: rgba(204, 34, 34, 0.05);
-  border: 1px solid rgba(204, 34, 34, 0.2);
-  border-radius: 10px;
-  padding: 1rem 2rem;
+  margin: 0;
+  background: rgba(204, 34, 34, 0.08);
+  border: 1px solid rgba(255, 34, 34, 0.25);
+  border-radius: 12px;
+  padding: 1.2rem 2rem;
   text-align: left;
-  max-width: 320px;
-  margin-left: auto;
-  margin-right: auto;
+  width: 100%;
+  max-width: 450px;
+  backdrop-filter: blur(5px);
+}
+
+.menu-updates:hover {
+  background: rgba(204, 34, 34, 0.12);
+  transform: translateY(-2px);
+  transition: all 0.3s;
 }
 
 .menu-updates h3 {
@@ -144,35 +203,57 @@ body {
   gap: 0.3rem;
 }
 
-.menu-updates li {
-  position: relative;
-  padding-left: 0.5rem;
+.menu-updates li::before {
+  content: '⚡';
+  margin-right: 8px;
+  font-size: 0.8rem;
+  filter: drop-shadow(0 0 5px #ff4400);
 }
 
 .btn-primary {
   display: inline-block;
   font-family: 'Orbitron', sans-serif;
-  font-size: 1.15rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  padding: 0.9rem 3rem;
-  background: linear-gradient(135deg, #cc2222, #880000);
+  font-size: 2rem;
+  font-weight: 950;
+  letter-spacing: 0.3em;
+  padding: 1.8rem 8rem;
+  background: linear-gradient(135deg, #ff0000, #b30000);
   color: #fff;
-  border: none;
-  border-radius: 8px;
+  border: 4px solid rgba(255, 255, 255, 0.4);
+  border-radius: 18px;
   cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 0 24px rgba(204, 34, 34, 0.5);
+  transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+  box-shadow: 0 0 60px rgba(255, 0, 0, 0.6), inset 0 0 30px rgba(255, 255, 255, 0.2);
   text-transform: uppercase;
+  margin-top: 2rem;
+  position: relative;
+  overflow: hidden;
+  animation: btnPulse 1.5s infinite alternate, menuIn 0.8s 0.6s forwards;
+  z-index: 5;
+}
+
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  transform: rotate(45deg);
+  animation: btnShine 2s infinite;
 }
 
 .btn-primary:hover {
-  transform: scale(1.05);
-  box-shadow: 0 0 40px rgba(204, 34, 34, 0.8);
+  transform: scale(1.1) translateY(-10px);
+  box-shadow: 0 0 90px rgba(255, 0, 0, 1), 0 0 40px rgba(255, 255, 255, 0.4);
+  background: linear-gradient(135deg, #ff4400, #e60000);
+  border-color: #fff;
+  filter: brightness(1.2);
 }
 
 .btn-primary:active {
-  transform: scale(0.97);
+  transform: scale(0.92);
 }
 
 /* ENTRE RONDAS */
@@ -668,15 +749,54 @@ body {
   }
 }
 
-@keyframes popIn {
+@keyframes menuIn {
   from {
-    transform: translate(-50%, -60%) scale(0.7);
     opacity: 0;
+    transform: translateY(50px) scale(0.9);
+    filter: blur(10px);
   }
 
   to {
-    transform: translate(-50%, -60%) scale(1);
     opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes titleGlow {
+  from {
+    text-shadow: 0 0 20px #cc0000, 0 0 40px #660000;
+  }
+
+  to {
+    text-shadow: 0 0 50px #ff2200, 0 0 100px #cc0000, 0 0 20px #fff;
+  }
+}
+
+@keyframes btnPulse {
+  from {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+
+  to {
+    transform: scale(1.05);
+    filter: brightness(1.2);
+    box-shadow: 0 0 60px rgba(255, 0, 0, 0.6);
+  }
+}
+
+@keyframes btnShine {
+  0% {
+    left: -100%;
+  }
+
+  20% {
+    left: 100%;
+  }
+
+  100% {
+    left: 100%;
   }
 }
 
