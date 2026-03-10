@@ -649,7 +649,7 @@
     function buildInput() {
         document.addEventListener('keydown', function (e) {
             keys[e.code] = true;
-            if (state !== GS.PLAYING) return;
+            if (state !== GS.PLAYING && state !== GS.ROUND_COMPLETE) return;
             if (e.code === 'Digit1') trySwitch(0);
             if (e.code === 'Digit2') trySwitch(1);
             if (e.code === 'Digit3') trySwitch(2);
@@ -664,7 +664,7 @@
         document.addEventListener('keyup', function (e) { keys[e.code] = false; });
         document.addEventListener('mousedown', function (e) {
             mb[e.button] = true;
-            if (state === GS.PLAYING && e.button === 2 && wIdx === 3) {
+            if ((state === GS.PLAYING || state === GS.ROUND_COMPLETE) && e.button === 2 && wIdx === 3) {
                 isAiming = !isAiming;
                 camera.fov = isAiming ? 30 : 75; camera.updateProjectionMatrix();
                 wCamera.fov = isAiming ? 30 : 75; wCamera.updateProjectionMatrix();
@@ -680,7 +680,7 @@
         canvas.addEventListener('click', function () {
             ensureAudio();
             if (state === GS.MENU) { startGame(); return; }
-            if (state === GS.PLAYING && !locked) canvas.requestPointerLock();
+            if ((state === GS.PLAYING || state === GS.ROUND_COMPLETE) && !locked) canvas.requestPointerLock();
         });
 
         var sb = document.getElementById('btn-start');
@@ -891,11 +891,17 @@
     }
 
     function spawnZombie(tkey) {
-        // Spawn en radio 18-28 alrededor del jugador (antes era 40-60 = demasiado lejos)
-        var ang = Math.random() * Math.PI * 2;
-        var dist = tkey === 'BOSS' ? 20 : 18 + Math.random() * 10;
-        var sx = player.px + Math.cos(ang) * dist;
-        var sz = player.pz + Math.sin(ang) * dist;
+        // Buscar punto de spawn válido (hasta 10 intentos)
+        var sx, sz, valid = false;
+        for (var i = 0; i < 10; i++) {
+            var ang = Math.random() * Math.PI * 2;
+            var dist = tkey === 'BOSS' ? 20 : 18 + Math.random() * 10;
+            sx = player.px + Math.cos(ang) * dist;
+            sz = player.pz + Math.sin(ang) * dist;
+            if (canMove(sx, sz)) { valid = true; break; }
+        }
+        if (!valid) { sx = player.px + 2; sz = player.pz + 2; } // Fallback
+
         var m = makeZombie(tkey);
         m.position.set(sx, -2.5, sz);
         scene.add(m);
@@ -1589,12 +1595,12 @@
             if (!shopNpc) { shopNpc = makeShopNpc(); scene.add(shopNpc); }
             else shopNpc.visible = true;
             npcVisible = true;
-            showNotif('✅ ¡RONDA ' + round + ' COMPLETADA! 🛒 ¡Tienda disponible!');
+            showNotif('✅ ¡RONDA ' + round + ' COMPLETADA! 🛒 ¡Tienda disponible por 30s!');
+            setTimeout(function () { hideNotif(); nextRound(); }, 30000); // 30 segundos
         } else {
             showNotif('✅ ¡RONDA ' + round + ' COMPLETADA!');
+            setTimeout(function () { hideNotif(); nextRound(); }, 4000);  // 4 segundos normal
         }
-
-        setTimeout(function () { hideNotif(); nextRound(); }, 2800);
     }
 
 
@@ -1626,7 +1632,7 @@
         domAmmo.textContent = ammo + ' / ' + w.mag;
         domRoundTxt.textContent = 'RONDA ' + round;
         domZombies.textContent = 'Zombies: ' + killedZ + ' / ' + totalZ;
-        domScore.textContent = 'Score: ' + score;
+        domScore.textContent = 'Dinero: $' + score; // ¡Actualizado a Dinero!
         domKills.textContent = 'Kills: ' + kills;
         updateDamageOverlay();
     }
@@ -1684,11 +1690,11 @@
         var t = clock.elapsedTime;
 
         if (state === GS.COUNTDOWN) { updateCountdown(dt); renderFrames(dt, t); return; }
-        if (state === GS.PLAYING) {
+        if (state === GS.PLAYING || state === GS.ROUND_COMPLETE) {
             updatePlayer(dt);
             updateZombies(dt);
             updateParticles(dt);
-            updateSpawn(dt);
+            if (state === GS.PLAYING) updateSpawn(dt);  // solo spawnear si estamos jugando
             updateReloadBar(dt);
             updateFires(t);
             updateMinimap();
