@@ -86,7 +86,7 @@ body::after {
   animation-delay: 0.2s;
 }
 
-.menu-content .menu-controls {
+.menu-content .btn-primary {
   animation-delay: 0.3s;
 }
 
@@ -94,8 +94,8 @@ body::after {
   animation-delay: 0.4s;
 }
 
-.menu-content .btn-primary {
-  animation-delay: 0.6s;
+.menu-content .menu-controls {
+  animation-delay: 0.5s;
 }
 
 .game-title {
