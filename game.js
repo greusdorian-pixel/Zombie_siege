@@ -18,10 +18,10 @@
     ];
 
     var ZTYPES = {
-        B: { hp: 60, spd: 2.2, dmg: 10, atkRate: 1.0, sc: 1.0, col: 0x3d7a3e, pts: 10, rr: 0.9 },
-        F: { hp: 35, spd: 5.0, dmg: 8, atkRate: 0.6, sc: 0.82, col: 0x2a4a2b, pts: 15, rr: 1.5 },
-        T: { hp: 220, spd: 1.3, dmg: 28, atkRate: 1.2, sc: 1.55, col: 0x6b3535, pts: 30, rr: 0.7 },
-        BOSS: { hp: 800, spd: 1.8, dmg: 40, atkRate: 0.8, sc: 2.2, col: 0x1a0a2e, pts: 200, rr: 0.5 }
+        B: { hp: 60, spd: 2.2, dmg: 10, atkRate: 1.0, sc: 1.0, col: 0x3d7a3e, pts: 30, rr: 0.9 },
+        F: { hp: 35, spd: 5.0, dmg: 8, atkRate: 0.6, sc: 0.82, col: 0x2a4a2b, pts: 45, rr: 1.5 },
+        T: { hp: 220, spd: 1.3, dmg: 28, atkRate: 1.2, sc: 1.55, col: 0x6b3535, pts: 80, rr: 0.7 },
+        BOSS: { hp: 800, spd: 1.8, dmg: 40, atkRate: 0.8, sc: 2.2, col: 0x1a0a2e, pts: 1000, rr: 0.5 }
     };
 
     var WAVES = [
@@ -178,10 +178,10 @@
 
         var audioLoader = new THREE.AudioLoader();
         // Audio de tienda
-        audioLoader.load('sound/TIENDAOSOUND.ogg',
+        audioLoader.load('sound/TIENDASOUND.ogg',
             function (buf) { shopAudioBuffer = buf; },
             null,
-            function () { console.warn('[ZombieSiege] No se pudo cargar TIENDAOSOUND.ogg'); }
+            function () { console.warn('[ZombieSiege] No se pudo cargar TIENDASOUND.ogg'); }
         );
         // Buffers de zombies
         var soundFiles = [
@@ -322,49 +322,49 @@
         var cost = 0, msg = '';
         switch (id) {
             case 'medkit':
-                cost = 500;
+                cost = 250;
                 if (score < cost) { shopMsg('\u274C Necesitas ' + cost + ' pts', false); return; }
                 score -= cost;
                 player.hp = Math.min(player.maxHp, player.hp + 50);
                 msg = '\u2764\uFE0F +50 HP';
                 break;
             case 'ammo':
-                cost = 250;
+                cost = 150;
                 if (score < cost) { shopMsg('\u274C Necesitas ' + cost + ' pts', false); return; }
                 score -= cost;
                 ammo = WDATA[wIdx].mag;
                 msg = '\uD83D\uDD2B Munici\u00F3n recargada';
                 break;
             case 'shotgun':
-                cost = 1000;
+                cost = 800;
                 if (unlocked.indexOf(1) >= 0) { shopMsg('Ya tienes la Escopeta', false); return; }
                 if (score < cost) { shopMsg('\u274C Necesitas ' + cost + ' pts', false); return; }
                 score -= cost; unlocked.push(1);
                 msg = '\uD83D\uDCA5 Escopeta desbloqueada!';
                 break;
             case 'smg':
-                cost = 2000;
+                cost = 1500;
                 if (unlocked.indexOf(2) >= 0) { shopMsg('Ya tienes la Metralleta', false); return; }
                 if (score < cost) { shopMsg('\u274C Necesitas ' + cost + ' pts', false); return; }
                 score -= cost; unlocked.push(2);
                 msg = '\u26A1 Metralleta desbloqueada!';
                 break;
             case 'sniper':
-                cost = 3000;
+                cost = 2500;
                 if (unlocked.indexOf(3) >= 0) { shopMsg('Ya tienes el Sniper', false); return; }
                 if (score < cost) { shopMsg('\u274C Necesitas ' + cost + ' pts', false); return; }
                 score -= cost; unlocked.push(3);
                 msg = '\uD83C\uDFAF Sniper desbloqueado!';
                 break;
             case 'energy':
-                cost = 1500;
+                cost = 1000;
                 if (maxStamina >= 150) { shopMsg('Stamina ya al m\u00E1ximo', false); return; }
                 if (score < cost) { shopMsg('\u274C Necesitas ' + cost + ' pts', false); return; }
                 score -= cost; maxStamina = 150;
                 msg = '\u26A1 Stamina m\u00E1x. +50!';
                 break;
             case 'vest':
-                cost = 2000;
+                cost = 1200;
                 if (player.maxHp >= 150) { shopMsg('Chaleco ya equipado', false); return; }
                 if (score < cost) { shopMsg('\u274C Necesitas ' + cost + ' pts', false); return; }
                 score -= cost; player.maxHp = 150;
@@ -1205,10 +1205,14 @@
         updateWeaponAnimation(dt, isMoving, canSprint && isMoving);
 
         // ─── 8. NPC PROXIMIDAD — mostrar/ocultar prompt E ───────────────────────
-        if (npcVisible && domNpcPrompt) {
-            var ndx = player.px - NPC_POS.x, ndz = player.pz - NPC_POS.z;
-            if (Math.sqrt(ndx * ndx + ndz * ndz) < 6) domNpcPrompt.classList.remove('hidden');
-            else domNpcPrompt.classList.add('hidden');
+        if (domNpcPrompt) {
+            if (npcVisible && !shopOpen) {
+                var ndx = player.px - NPC_POS.x, ndz = player.pz - NPC_POS.z;
+                if (Math.sqrt(ndx * ndx + ndz * ndz) < 6) domNpcPrompt.classList.remove('hidden');
+                else domNpcPrompt.classList.add('hidden');
+            } else {
+                domNpcPrompt.classList.add('hidden');
+            }
         }
     }
 
