@@ -5,9 +5,8 @@
 (function () {
     'use strict';
 
-    // ──────────────────────────────────────────────
-    // CONSTANTES
-    // ──────────────────────────────────────────────
+    var GAME_VERSION = "v8.1";
+    var GAME_VERSION_NAME = "INTERFACE UPDATE";
     var GS = { MENU: 'menu', COUNTDOWN: 'countdown', PLAYING: 'playing', ROUND_COMPLETE: 'round_complete', GAMEOVER: 'gameover', SHOP: 'shop' };
 
     var WDATA = [
@@ -153,6 +152,9 @@
     // ──────────────────────────────────────────────
     function init() {
         getDom();
+        // Actualizar versiones automáticamente antes de nada
+        document.querySelectorAll('.v-label').forEach(function (e) { e.textContent = GAME_VERSION; });
+        document.querySelectorAll('.v-full').forEach(function (e) { e.textContent = GAME_VERSION + " — " + GAME_VERSION_NAME; });
 
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x0a0a18);
