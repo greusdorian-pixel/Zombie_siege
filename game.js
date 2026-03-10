@@ -21,7 +21,8 @@
         B: { hp: 60, spd: 2.2, dmg: 10, atkRate: 1.0, sc: 1.0, col: 0x3d7a3e, pts: 30, rr: 0.9 },
         F: { hp: 35, spd: 5.0, dmg: 8, atkRate: 0.6, sc: 0.82, col: 0x2a4a2b, pts: 45, rr: 1.5 },
         T: { hp: 220, spd: 1.3, dmg: 28, atkRate: 1.2, sc: 1.55, col: 0x6b3535, pts: 80, rr: 0.7 },
-        BOSS: { hp: 800, spd: 1.8, dmg: 40, atkRate: 0.8, sc: 2.2, col: 0x1a0a2e, pts: 1000, rr: 0.5 }
+        BOSS: { hp: 800, spd: 1.8, dmg: 40, atkRate: 0.8, sc: 2.2, col: 0x1a0a2e, pts: 1000, rr: 0.5 },
+        M: { hp: 2000, spd: 2.0, dmg: 55, atkRate: 0.7, sc: 3.5, col: 0x4a0000, pts: 5000, rr: 0.4 }
     };
 
     var WAVES = [
@@ -746,10 +747,10 @@
         }
         // Costillas expuestas
         for (var ri = 0; ri < 3; ri++) {
-            var ribA = new THREE.Mesh(new THREE.CylinderGeometry(0.014 * sc, 0.014 * sc, 0.30 * sc, 4), mm(boneCol, 10, boneCol, 0.15));
-            ribA.position.set(0.16 * sc, (0.22 + ri * 0.11) * sc, 0.1 * sc); ribA.rotation.z = Math.PI / 2 + 0.3; ribA.rotation.x = -0.4; g.add(ribA);
-            var ribB = new THREE.Mesh(new THREE.CylinderGeometry(0.014 * sc, 0.014 * sc, 0.30 * sc, 4), mm(boneCol, 10, boneCol, 0.15));
-            ribB.position.set(-0.16 * sc, (0.22 + ri * 0.11) * sc, 0.1 * sc); ribB.rotation.z = -(Math.PI / 2 + 0.3); ribB.rotation.x = -0.4; g.add(ribB);
+            var ribA = new THREE.Mesh(new THREE.CylinderGeometry(0.012 * sc, 0.012 * sc, 0.25 * sc, 4), mm(boneCol, 10, boneCol, 0.15));
+            ribA.position.set(0.12 * sc, (0.22 + ri * 0.11) * sc, 0.1 * sc); ribA.rotation.z = Math.PI / 2 + 0.3; ribA.rotation.x = -0.4; g.add(ribA);
+            var ribB = new THREE.Mesh(new THREE.CylinderGeometry(0.012 * sc, 0.012 * sc, 0.25 * sc, 4), mm(boneCol, 10, boneCol, 0.15));
+            ribB.position.set(-0.12 * sc, (0.22 + ri * 0.11) * sc, 0.1 * sc); ribB.rotation.z = -(Math.PI / 2 + 0.3); ribB.rotation.x = -0.4; g.add(ribB);
         }
         // Cicatriz / carne expuesta
         var wound = new THREE.Mesh(new THREE.SphereGeometry(0.09 * sc, 6, 6), mm(bloodCol, 2, bloodCol, 0.4));
@@ -790,13 +791,19 @@
         var rp = new THREE.Mesh(new THREE.SphereGeometry(0.02 * sc, 6, 6), pupilMat);
         rp.position.set(-0.082 * sc, 0.98 * sc, 0.195 * sc); g.add(rp);
 
-        // ── BRAZOS extendidos con garras ─────────────────────────────────────────────
+        // ── BRAZOS pegados al cuerpo ────────────────────────────────
         var armGeo = new THREE.CylinderGeometry(0.065 * sc, 0.05 * sc, 0.62 * sc, 6);
+        // Desplazamiento del pivote para mejor rotacion desde el hombro
+        armGeo.translate(0, -0.31 * sc, 0);
         var foreGeo = new THREE.CylinderGeometry(0.05 * sc, 0.04 * sc, 0.5 * sc, 6);
-        var la = new THREE.Mesh(armGeo, mm(darkCol)); la.position.set(0.32 * sc, 0.52 * sc, 0); la.rotation.z = -0.5; la.rotation.x = -0.6; g.add(la);
-        var lf = new THREE.Mesh(foreGeo, mm(skinCol)); lf.position.set(0.46 * sc, 0.32 * sc, 0.22 * sc); lf.rotation.z = -0.3; lf.rotation.x = -1.1; g.add(lf);
-        var ra = new THREE.Mesh(armGeo, mm(darkCol)); ra.position.set(-0.32 * sc, 0.48 * sc, 0); ra.rotation.z = 0.6; ra.rotation.x = -0.3; g.add(ra);
-        var rf = new THREE.Mesh(foreGeo, mm(skinCol)); rf.position.set(-0.46 * sc, 0.22 * sc, 0.12 * sc); rf.rotation.z = 0.4; rf.rotation.x = -0.8; g.add(rf);
+        foreGeo.translate(0, -0.25 * sc, 0);
+
+        var la = new THREE.Mesh(armGeo, mm(darkCol)); la.position.set(0.24 * sc, 0.65 * sc, 0); la.rotation.z = -0.2; la.rotation.x = -0.4; g.add(la);
+        var lf = new THREE.Mesh(foreGeo, mm(skinCol)); lf.position.set(0, -0.58 * sc, 0); lf.rotation.z = 0.1; lf.rotation.x = -0.6; la.add(lf);
+
+        var ra = new THREE.Mesh(armGeo, mm(darkCol)); ra.position.set(-0.24 * sc, 0.63 * sc, 0); ra.rotation.z = 0.2; ra.rotation.x = -0.2; g.add(ra);
+        var rf = new THREE.Mesh(foreGeo, mm(skinCol)); rf.position.set(0, -0.58 * sc, 0); rf.rotation.z = -0.1; rf.rotation.x = -0.4; ra.add(rf);
+
         // Garras
         var clawMat = mm(boneCol, 20, boneCol, 0.2);
         [[-0.06, 0, 0.06], [0, 0, 0.06], [0.06, 0, 0.06]].forEach(function (o) {
@@ -806,12 +813,14 @@
             cr.position.set(-0.50 * sc + o[0] * sc, 0.05 * sc, 0.28 * sc + o[2] * sc); cr.rotation.x = -Math.PI / 2 + 0.4; g.add(cr);
         });
 
-        // ── PIERNAS con rodillas huesudas ────────────────────────────────────────────
-        var legGeo = new THREE.CylinderGeometry(0.09 * sc, 0.075 * sc, 0.68 * sc, 7);
-        var ll = new THREE.Mesh(legGeo, mm(darkCol)); ll.position.set(0.13 * sc, -0.35 * sc, 0); ll.rotation.z = 0.06; g.add(ll);
-        var rl = new THREE.Mesh(legGeo, mm(darkCol)); rl.position.set(-0.13 * sc, -0.38 * sc, 0); rl.rotation.z = -0.10; g.add(rl);
-        var lk = new THREE.Mesh(new THREE.SphereGeometry(0.07 * sc, 6, 6), mm(boneCol, 12)); lk.position.set(0.13 * sc, -0.15 * sc, 0.04 * sc); g.add(lk);
-        var rk = new THREE.Mesh(new THREE.SphereGeometry(0.07 * sc, 6, 6), mm(boneCol, 12)); rk.position.set(-0.13 * sc, -0.18 * sc, 0.04 * sc); g.add(rk);
+        // ── PIERNAS re-posicionadas ────────────────────────────────────────────────
+        var legGeo = new THREE.CylinderGeometry(0.08 * sc, 0.065 * sc, 0.68 * sc, 7);
+        legGeo.translate(0, -0.34 * sc, 0);
+
+        var ll = new THREE.Mesh(legGeo, mm(darkCol)); ll.position.set(0.12 * sc, 0.02 * sc, 0); ll.rotation.z = 0.02; g.add(ll);
+        var rl = new THREE.Mesh(legGeo, mm(darkCol)); rl.position.set(-0.12 * sc, 0.02 * sc, 0); rl.rotation.z = -0.02; g.add(rl);
+        var lk = new THREE.Mesh(new THREE.SphereGeometry(0.07 * sc, 6, 6), mm(boneCol, 12)); lk.position.set(0, -0.34 * sc, 0.03 * sc); ll.add(lk);
+        var rk = new THREE.Mesh(new THREE.SphereGeometry(0.07 * sc, 6, 6), mm(boneCol, 12)); rk.position.set(0, -0.34 * sc, 0.03 * sc); rl.add(rk);
 
         // ── VARIACIONES POR TIPO ─────────────────────────────────────────────────────
         if (tkey === 'T') {  // Tank: hombros masivos
@@ -1492,12 +1501,10 @@
             if (ud.aiState !== 'ATTACK') {
                 var animSpd = ud.aiState === 'CHASE' ? ud.cfg.spd : 1.0;
                 ud.wc += dt * (animSpd * ud.cfg.rr);
-                ud.la.rotation.x = Math.sin(ud.wc) * 0.7;
-                ud.ra.rotation.x = -Math.sin(ud.wc) * 0.7;
+                ud.la.rotation.x = -0.4 + Math.sin(ud.wc) * 0.7;
+                ud.ra.rotation.x = -0.2 - Math.sin(ud.wc) * 0.7;
                 ud.ll.rotation.x = -Math.sin(ud.wc) * 0.5;
                 ud.rl.rotation.x = Math.sin(ud.wc) * 0.5;
-                ud.la.rotation.z = -0.4 + Math.sin(ud.wc) * 0.4;
-                ud.ra.rotation.z = 0.4 - Math.sin(ud.wc) * 0.4;
             }
 
             // ─ Hit flash: parpadeo rojo al recibir daño ─

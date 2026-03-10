@@ -47,6 +47,10 @@ body {
   display: none !important;
 }
 
+.hidden {
+  display: none !important;
+}
+
 /* MENU */
 .menu-content {
   text-align: center;
