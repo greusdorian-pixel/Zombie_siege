@@ -109,6 +109,11 @@
     var audioCtx = null;
     var fires = [];             // {light, phase}
 
+    // ── AUDIO ESPACIAL 3D ──────────────────────────
+    var audioListener = null;       // THREE.AudioListener adjunto a la cámara
+    var zombieAudioBuffers = [];    // Buffers pre-cargados [zombie1, zombie2, zombie3]
+    var audioBuffersReady = false;  // Flag: buffers listos para usar
+
     // DOM refs
     var domMenu, domRound, domGameover;
     var domHud, domHealth, domHealthText, domHealthFill;
@@ -158,6 +163,47 @@
         buildMap();
         buildWeapons();
         buildInput();
+
+        // ── AUDIO: Crear Listener y pre-cargar buffers de zombies ─────────────────
+        // El AudioListener representa los "oídos" del jugador: se adjunta a la cámara
+        audioListener = new THREE.AudioListener();
+        camera.add(audioListener);
+
+        // AudioLoader carga los archivos .ogg y guarda cada buffer en el array global
+        // Hacemos esto UNA SOLA VEZ al inicio (no en cada spawn de zombie)
+        var audioLoader = new THREE.AudioLoader();
+        var soundFiles = [
+            'sound/zombie.ogg',
+            'sound/zombie2.ogg',
+            'sound/zombie3.ogg',
+            'sound/zombie4.ogg'
+        ];
+        var loadedCount = 0;
+        soundFiles.forEach(function (path, idx) {
+            audioLoader.load(
+                path,
+                function (buffer) {
+                    // Éxito: guardar el buffer en la posición correcta del array
+                    zombieAudioBuffers[idx] = buffer;
+                    loadedCount++;
+                    if (loadedCount === soundFiles.length) {
+                        // Todos los buffers listos → activar el flag
+                        audioBuffersReady = true;
+                    }
+                },
+                null,  // onProgress (no necesario)
+                function (err) {
+                    // Error de carga: loguear pero no romper el juego
+                    console.warn('[ZombieSiege] No se pudo cargar audio: ' + path, err);
+                    loadedCount++;
+                    if (loadedCount === soundFiles.length) {
+                        // Marcar como listo aunque alguno haya fallado
+                        audioBuffersReady = zombieAudioBuffers.some(function (b) { return !!b; });
+                    }
+                }
+            );
+        });
+        // ─────────────────────────────────────────────────────────────────────────
 
         domMenu.classList.remove('hidden');
         animate();
@@ -518,8 +564,35 @@
             cfg: cfg, tkey: tkey, hp: cfg.hp, maxHp: cfg.hp,
             la: la, ra: ra, ll: ll, rl: rl, head: head,
             wc: Math.random() * Math.PI * 2, atkT: 0,
-            alive: true, dying: false, dyT: 0, spawning: true, spT: 0
+            alive: true, dying: false, dyT: 0, spawning: true, spT: 0,
+            aiState: 'WANDER', wanderAngle: null, wanderT: 0, wanderInterval: 3,
+            growlSound: null  // referencia al PositionalAudio (se asigna abajo)
         };
+
+        // ── AUDIO ESPACIAL: Asignar gruñido 3D al zombie ──────────────────────
+        // Solo asignar si el Listener existe Y hay al menos un buffer listo
+        if (audioListener && audioBuffersReady && zombieAudioBuffers.length > 0) {
+            // Filtrar buffers válidos (algunos podrían no haber cargado)
+            var validBuffers = zombieAudioBuffers.filter(function (b) { return !!b; });
+            if (validBuffers.length > 0) {
+                // Instanciar el audio posicional vinculado al listener del jugador
+                var growl = new THREE.PositionalAudio(audioListener);
+                // Elegir un buffer aleatorio entre los 3 gruñidos
+                growl.setBuffer(validBuffers[Math.floor(Math.random() * validBuffers.length)]);
+                // setRefDistance: distancia a la que el volumen es total (100%) = 5 unidades
+                growl.setRefDistance(5);
+                // setMaxDistance: más allá de 40 unidades no se escucha
+                growl.setMaxDistance(40);
+                // setRolloffFactor: velocidad con que baja el volumen al alejarse (2 = rápido)
+                growl.setRolloffFactor(2);
+                growl.setLoop(false);
+                // Agregar el audio como hijo de la malla para que siga la posición del zombie
+                g.add(growl);
+                g.userData.growlSound = growl;
+            }
+        }
+        // ─────────────────────────────────────────────────────────────────────────
+
         return g;
     }
 
@@ -897,6 +970,19 @@
             } else if (dist <= CHASE_DIST || ud.aiState === 'CHASE') {
                 // ─── ESTADO: CHASE (Perseguir) ──────────────────────────
                 // Detectado al jugador: moverse directamente hacia él
+
+                // ── AUDIO: Reproducir gruñido al ENTRAR en CHASE por primera vez ────
+                // Solo si: transitamos de WANDER, el sonido existe, y NO está ya reproduciéndose
+                if (ud.aiState !== 'CHASE' && ud.growlSound && !ud.growlSound.isPlaying) {
+                    // Variación aleatoria de tono: evita que todos los zombies suenen idéntico
+                    // Rango 0.8 – 1.2: un poco grave o un poco agudo
+                    ud.growlSound.setPlaybackRate(0.8 + Math.random() * 0.4);
+                    // Control de errores: el AudioContext puede estar suspendido
+                    // hasta que el usuario interactúe (política de autoplay del navegador)
+                    try { ud.growlSound.play(); } catch (e) { /* AudioContext no listo aún */ }
+                }
+                // ─────────────────────────────────────────────────────────────────────
+
                 ud.aiState = 'CHASE';
                 var spd = ud.cfg.spd;  // velocidad de persecución (cfg por tipo)
 
