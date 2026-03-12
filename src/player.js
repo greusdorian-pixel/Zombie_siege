@@ -65,10 +65,10 @@ export function updatePlayer(dt) {
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(core.camera.quaternion);
     right.y = 0; right.normalize();
 
-    if (inputState.keys['KeyW']) moveVec.add(forward);
-    if (inputState.keys['KeyS']) moveVec.sub(forward);
-    if (inputState.keys['KeyA']) moveVec.sub(right);
-    if (inputState.keys['KeyD']) moveVec.add(right);
+    if (inputState.keys['KeyW'] || inputState.keys['ArrowUp']) moveVec.add(forward);
+    if (inputState.keys['KeyS'] || inputState.keys['ArrowDown']) moveVec.sub(forward);
+    if (inputState.keys['KeyA'] || inputState.keys['ArrowLeft']) moveVec.sub(right);
+    if (inputState.keys['KeyD'] || inputState.keys['ArrowRight']) moveVec.add(right);
 
     if (moveVec.lengthSq() > 0) {
         moveVec.normalize(); // Ensure consistent speed as requested

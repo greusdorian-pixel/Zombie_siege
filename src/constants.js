@@ -1,6 +1,7 @@
-export const GAME_VERSION = "v8.1";
+export const VERSION = "v8.1";
 export const GAME_VERSION_NAME = "INTERFACE UPDATE";
-export const GS = { MENU: 'menu', COUNTDOWN: 'countdown', PLAYING: 'playing', ROUND_COMPLETE: 'round_complete', GAMEOVER: 'gameover', SHOP: 'shop' };
+export const GAME_STATES = { MENU: 'menu', COUNTDOWN: 'countdown', PLAYING: 'playing', ROUND_COMPLETE: 'round_complete', GAMEOVER: 'gameover', SHOP: 'shop' };
+export const GS = GAME_STATES;
 
 export const WDATA = [
     { id: 0, name: 'PISTOLA', dmg: 25, mag: 12, reload: 1.5, rate: 0.25, auto: false, pellets: 1, spread: 0.0, unlock: 1, shakeI: 0.03, shakeD: 0.10, score: 10 },

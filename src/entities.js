@@ -105,7 +105,6 @@ export function updateZombies(dt) {
     projScreenMatrix.multiplyMatrices(core.camera.projectionMatrix, core.camera.matrixWorldInverse);
     frustum.setFromProjectionMatrix(projScreenMatrix);
 
-    const now = core.clock.getDelta(); // This is wrong, should be elapsedTime or accumulated
     const time = core.clock.elapsedTime;
     const pX = playerState.px, pZ = playerState.pz;
 

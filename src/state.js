@@ -25,7 +25,7 @@ export const playerState = {
     vy: 0,
     yaw: 0,
     pitch: 0,
-    onGround: true,
+    isGrounded: true,
     jumps: 0,
     stamina: 100,
     maxStamina: 100,

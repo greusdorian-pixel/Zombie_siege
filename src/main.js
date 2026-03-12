@@ -2,7 +2,7 @@ import { core, gameState, playerState, inputState } from './state.js';
 import { VERSION, GAME_STATES, WAVES, WDATA, WEAPON_BASE } from './constants.js';
 import { ensureAudio, loadSounds, playRoundStart, playGameOver, playRoundEnd } from './audio.js';
 import { buildMap } from './map.js';
-import { initEntities, updateZombies, updateParticles, zombies } from './entities.js';
+import { initEntities, updateZombies, updateParticles, zombies, spawnZombie } from './entities.js';
 import { updatePlayer } from './player.js';
 import { updateSky, updateFires } from './environment.js';
 import { updateHUD, systemUpdate } from './ui.js';
@@ -27,6 +27,12 @@ function init() {
 
     core.clock = new THREE.Clock();
     core.raycaster = new THREE.Raycaster();
+
+    // 2. Weapon Scene (Overlay)
+    core.wScene = new THREE.Scene();
+    core.wCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 10);
+    core.wGroup = new THREE.Group();
+    core.wScene.add(core.wGroup);
 
     // 2. Lighting
     core.ambientLight = new THREE.AmbientLight(0x404040, 0.5);
@@ -62,7 +68,7 @@ function init() {
 }
 
 function startGame() {
-    gameState.state = GAME_STATES.PLAYING;
+    gameState.current = GAME_STATES.PLAYING;
     gameState.round = 1;
     gameState.score = 0;
     gameState.kills = 0;
@@ -80,7 +86,7 @@ function startGame() {
 }
 
 function nextRound() {
-    gameState.state = GAME_STATES.COUNTDOWN;
+    gameState.current = GAME_STATES.COUNTDOWN;
     // Build wave
     const wave = (gameState.round <= WAVES.length) ? WAVES[gameState.round - 1] : WAVES[WAVES.length - 1];
     spawnQueue = [];
@@ -96,7 +102,7 @@ function nextRound() {
     
     // Small delay for countdown
     setTimeout(() => {
-        gameState.state = GAME_STATES.PLAYING;
+        gameState.current = GAME_STATES.PLAYING;
     }, 3000);
 }
 
@@ -105,7 +111,7 @@ function updateSpawn(dt) {
     spawnTimer += dt;
     if (spawnTimer >= 0.6) {
         spawnTimer = 0;
-        // spawnZombie logic ... simplified for now
+        spawnZombie(spawnQueue.shift());
     }
 }
 
@@ -115,15 +121,20 @@ function animate() {
     if (dt > 0.05) dt = 0.05;
     const t = core.clock.elapsedTime;
 
-    if (gameState.state === GAME_STATES.PLAYING || gameState.state === GAME_STATES.ROUND_COMPLETE) {
-        updatePlayer(dt);
+    if (gameState.current === GAME_STATES.PLAYING || 
+        gameState.current === GAME_STATES.COUNTDOWN || 
+        gameState.current === GAME_STATES.ROUND_COMPLETE) {
+        
+        if (gameState.current !== GAME_STATES.COUNTDOWN) {
+            updatePlayer(dt);
+            updateZombies(dt);
+            updateSpawn(dt);
+        }
+        
         updateSky(dt);
-        updateZombies(dt);
         updateParticles(dt);
         updateFires(t);
         updateHUD();
-        
-        if (gameState.state === GAME_STATES.PLAYING) updateSpawn(dt);
     }
 
     render();
@@ -132,6 +143,8 @@ function animate() {
 function render() {
     core.renderer.clear();
     core.renderer.render(core.scene, core.camera);
+    core.renderer.clearDepth();
+    core.renderer.render(core.wScene, core.wCamera);
 }
 
 function onResize() {
