@@ -13,6 +13,11 @@ let lastFire = 0;
 let fireLock = false;
 
 function init() {
+    if (typeof THREE === 'undefined') {
+        console.error('THREE.js not loaded!');
+        return;
+    }
+    console.log('Initializing game...');
     // 1. Core Setup
     core.scene = new THREE.Scene();
     core.scene.background = new THREE.Color(0x050510);
@@ -44,8 +49,17 @@ function init() {
     core.scene.add(core.mainLight);
 
     // 3. World Building
-    buildMap();
-    initEntities(core.scene);
+    try {
+        buildMap();
+        initEntities(core.scene);
+        console.log('World built successfully');
+    } catch (e) {
+        console.error('Error building world:', e);
+    }
+    
+    // Initial camera position
+    core.camera.position.set(0, 1.7, 0);
+    core.camera.lookAt(0, 1.7, -1);
     
     // 4. Input Listeners
     window.addEventListener('resize', onResize);
@@ -68,6 +82,7 @@ function init() {
 }
 
 function startGame() {
+    console.log('Game starting...');
     gameState.current = GAME_STATES.PLAYING;
     gameState.round = 1;
     gameState.score = 0;
@@ -75,11 +90,19 @@ function startGame() {
     
     playerState.hp = playerState.maxHp;
     playerState.px = 0;
+    playerState.py = 1.7;
     playerState.pz = 0;
     
-    document.getElementById('screen-menu').classList.add('hidden');
-    document.getElementById('hud').classList.remove('hidden');
-    document.getElementById('gameCanvas').requestPointerLock();
+    const menu = document.getElementById('screen-menu');
+    const hud = document.getElementById('hud');
+    if (menu) menu.classList.add('hidden');
+    if (hud) hud.classList.remove('hidden');
+    
+    try {
+        document.getElementById('gameCanvas').requestPointerLock();
+    } catch (e) {
+        console.warn('Pointer lock failed:', e);
+    }
     
     loadSounds();
     nextRound();

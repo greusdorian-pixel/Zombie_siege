@@ -5,6 +5,7 @@ export const zombieAudioBuffers = [];
 export const bossAudioBuffers = [];
 export let shopAudioBuffer = null;
 export let audioBuffersReady = false;
+export let audioListener = null;
 
 /**
  * Initialize AudioContext only on user interaction.
@@ -23,8 +24,8 @@ export function ensureAudio() {
 export function loadSounds() {
     if (!core.camera) return;
     
-    core.audioListener = new THREE.AudioListener();
-    core.camera.add(core.audioListener);
+    audioListener = new THREE.AudioListener();
+    core.camera.add(audioListener);
 
     const audioLoader = new THREE.AudioLoader();
 

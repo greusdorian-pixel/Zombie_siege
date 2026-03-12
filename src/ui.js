@@ -18,7 +18,7 @@ const dom = {
     notifText: document.getElementById('notif-text'),
     headshot: document.getElementById('headshot-notif'),
     combo: document.getElementById('hud-combo'),
-    comboMulti: document.getElementById('combo-multi'),
+    comboMulti: document.getElementById('combo-multiplier'),
     comboFill: document.getElementById('combo-timer-fill'),
     unlock: document.getElementById('unlock-notif')
 };
