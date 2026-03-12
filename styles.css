@@ -3,6 +3,15 @@
    ============================================================ */
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Orbitron:wght@700;900&display=swap');
 
+:root {
+  --primary-red: #ff2222;
+  --secondary-red: #cc2222;
+  --accent-gold: #ffdd44;
+  --panel-bg: rgba(0, 0, 0, 0.55);
+  --text-main: #eeeeee;
+  --text-dim: #aaaaaa;
+}
+
 *,
 *::before,
 *::after {
@@ -436,6 +445,7 @@ body::after {
   padding: 10px 14px;
   min-width: 180px;
   backdrop-filter: blur(4px);
+  will-change: transform;
 }
 
 .hud-label {
